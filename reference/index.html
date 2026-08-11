@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#04070e">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="icon.png" sizes="512x512">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>SnapHit Studios: Instant. Play.</title>
+<meta name="description" content="Instant. Play. Original browser arcade games, free, no ads, no sign-in, nothing to install. Play one right now.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SnapHit Studios">
+<meta property="og:title" content="SnapHit Studios">
+<meta property="og:description" content="Instant. Play. We turn phones into arcade machines. Original browser games, free, no ads, no sign-in.">
+<meta property="og:url" content="https://snap-hit.online/">
+<meta property="og:image" content="https://snap-hit.online/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The SnapHit Studios mark: a cyan neon arcade joystick above the words SnapHit Studios, Instant. Play.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SnapHit Studios: Instant. Play.">
+<meta name="twitter:description" content="Original browser arcade games. Free, no ads, no sign-in, nothing to install.">
+<meta name="twitter:image" content="https://snap-hit.online/og.jpg">
+<link rel="canonical" href="https://snap-hit.online/">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --void:#04070e; --deep:#020409;
+    --cyan:#37d0f5; --cyan-dim:#1a86c4;
+    --amber:#ff9424; --amber-lit:#ffd9a2;
+    --ink:#cfe2f5; --ink-dim:#7e93ab;
+    /* The phone drives everything. Narrow shoulders, so the screen is the
+       object and the cabinet is the frame around it, not the other way round.
+       On narrow screens the width decides; on wide ones the height does. */
+    --cabx:1.44;                        /* cabinet width, in phone widths */
+    --apx:1.18;                         /* aperture width, likewise */
+    --pw:min(calc((100vw - 26px) / 1.44), 300px);
+    --ph:calc(var(--pw) / 0.4615);
+  }
+  @media (min-width:720px){
+    :root{ --cabx:1.62; --apx:1.30; --pw:min(26.5vh, 330px); }
+  }
+  @media (min-width:720px) and (min-height:1000px){
+    :root{ --pw:min(26vh, 380px); }
+  }
+  html{scroll-behavior:smooth;background:var(--void)}
+  body{
+    background:var(--void); color:var(--ink);
+    font:400 16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  a{color:var(--amber)}
+
+
+  /* The wordmark is drawn, not set. The letter outlines have their
+     overlapping pieces merged, so a stroke can only trace the silhouette:
+     no seam under a crossbar, no box at a junction. It also removes every
+     font fallback, synthetic bold and text-stroke support question. */
+  .wm{display:block;height:auto;color:var(--amber);overflow:visible}
+  .wm use{stroke-width:62}
+  .wm-foot{width:min(212px,58vw);margin:0 auto;
+    filter:drop-shadow(0 0 4px rgba(255,148,36,.8)) drop-shadow(0 0 18px rgba(255,148,36,.32))}
+  .wm-marq{width:54%;margin:0 auto;color:var(--amber);
+    filter:drop-shadow(0 0 4px rgba(255,148,36,.85)) drop-shadow(0 0 15px rgba(255,148,36,.42))}
+  .wm-marq use{stroke-width:62}
+
+  /* ---------- hero ---------- */
+  .hero{position:relative;width:100%;height:100dvh;min-height:420px}
+  .hero iframe{display:block;width:100%;height:100%;border:0}
+
+  /* Bottom right, clear of the slingshot, which lives dead centre. */
+  .down{
+    position:absolute;right:max(12px,env(safe-area-inset-right));
+    bottom:max(14px,env(safe-area-inset-bottom));
+    transform:translateY(14px);
+    display:flex;align-items:center;gap:7px;
+    padding:9px 13px 9px 15px;border:0;border-radius:999px;cursor:pointer;
+    background:rgba(6,13,24,.86);
+    color:var(--amber-lit);font:800 10px/1 system-ui,sans-serif;letter-spacing:.18em;
+    opacity:0;pointer-events:none;transition:opacity .8s ease,transform .8s ease;
+  }
+  .unlocked .down{opacity:1;transform:translateY(0);pointer-events:auto}
+  .down svg{width:17px;height:10px;animation:bob 1.9s ease-in-out infinite}
+  .down:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto} .down svg{animation:none} .marquee::after{animation:none;opacity:.35}
+    .thread::after{animation:none;top:50%}
+  }
+
+  /* ---------- shelf ---------- */
+  /* A long empty descent between the game and the first machine, with a
+     signal running down it. The jump straight from one to the other was
+     too abrupt. */
+  .bridge{
+    position:relative;height:clamp(300px,48vh,470px);
+    background:linear-gradient(180deg,#04070e 0%,#04070e 34%,#050c17 100%);
+  }
+  .thread{
+    position:absolute;left:50%;top:10%;bottom:10%;width:1px;
+    transform:translateX(-50%);
+    background:linear-gradient(180deg,transparent,rgba(55,208,245,.5) 24%,
+                               rgba(255,148,36,.5) 76%,transparent);
+  }
+  .thread::after{
+    content:"";position:absolute;left:50%;top:0;width:7px;height:7px;margin-left:-3.5px;
+    border-radius:50%;background:#ffe6c2;
+    box-shadow:0 0 10px 3px rgba(255,148,36,.6),0 0 22px 6px rgba(255,148,36,.25);
+    will-change:transform;
+    animation:drop 3.6s cubic-bezier(.42,0,.58,1) infinite;
+  }
+  @keyframes drop{
+    0%{transform:translateY(0);opacity:0} 10%{opacity:1}
+    86%{opacity:1} 100%{transform:translateY(var(--run,300px));opacity:0}
+  }
+  .bridge .thread{--run:clamp(240px,38vh,376px)}
+  .gap .thread{--run:clamp(167px,24vh,282px)}
+  .gap{position:relative;height:clamp(190px,28vh,320px)}
+  .gap .thread{top:6%;bottom:6%}
+
+  .shelf{
+    position:relative;padding:0 13px clamp(50px,8vw,100px);
+    background:
+      radial-gradient(120% 70% at 50% 0%, rgba(26,134,196,.13), transparent 62%),
+      linear-gradient(180deg,#04070e 0%,#060d18 40%,#04070e 100%);
+  }
+  .shelf::before{
+    content:"";position:absolute;inset:0 0 auto;height:1px;
+    background:linear-gradient(90deg,transparent,var(--amber),transparent);opacity:.5;
+  }
+  /* Present for crawlers and screen readers. The cabinet makes the point. */
+  .sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+      clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+
+  .rack{display:flex;flex-direction:column;align-items:center}
+
+  /* ---------- cabinet ---------- */
+  .cab{width:calc(var(--pw) * var(--cabx));max-width:100%}
+  .cab-body{
+    position:relative;padding:0 0 calc(var(--ph) * .04);
+    border-radius:calc(var(--pw) * .1) calc(var(--pw) * .1) calc(var(--pw) * .03) calc(var(--pw) * .03);
+    background:linear-gradient(180deg,#2a5b8c 0%,#1d4370 38%,#122c4d 74%,#0b1e38 100%);
+    box-shadow:
+      inset 0 0 0 1.5px rgba(55,208,245,.55),
+      inset 0 1px 0 rgba(180,232,255,.35),
+      0 0 0 2px rgba(255,148,36,.85),
+      0 0 34px -4px rgba(255,148,36,.45),
+      0 0 78px -18px rgba(55,208,245,.6),
+      0 40px 80px -30px rgba(0,0,0,.95);
+    overflow:hidden;
+  }
+  /* side art: cabinet stripes, the way a real machine is decalled */
+  .cab-body::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      linear-gradient(90deg,
+        transparent 0 3.5%, rgba(255,148,36,.85) 3.5% 5.4%,
+        transparent 5.4% 7%, rgba(55,208,245,.7) 7% 8.4%,
+        transparent 8.4% 91.6%, rgba(55,208,245,.7) 91.6% 93%,
+        transparent 93% 94.6%, rgba(255,148,36,.85) 94.6% 96.5%,
+        transparent 96.5% 100%);
+  }
+  /* Both front edges catch the light, and a broad gloss rakes across the
+     left face. This is what stops it reading as a flat rectangle. */
+  .cab-body::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      linear-gradient(90deg,
+        rgba(255,255,255,.34) 0 .8%,
+        rgba(214,240,255,.13) .8% 2.4%,
+        rgba(255,255,255,0) 2.4% 96.8%,
+        rgba(214,240,255,.10) 96.8% 99.1%,
+        rgba(255,255,255,.26) 99.1% 100%),
+      linear-gradient(104deg,
+        rgba(198,238,255,.19) 0 6%,
+        rgba(198,238,255,.07) 13%,
+        rgba(198,238,255,0) 30%,
+        rgba(198,238,255,0) 84%,
+        rgba(198,238,255,.05) 100%),
+      linear-gradient(180deg, rgba(255,255,255,.10) 0 1.5%, transparent 6%);
+  }
+  .marquee{
+    position:relative;margin:calc(var(--pw) * .07) calc(var(--pw) * .07) 0;
+    padding:calc(var(--pw) * .048) 0;border-radius:calc(var(--pw) * .045);
+    text-align:center;
+    background:linear-gradient(180deg,#1b1006 0%,#2a1708 55%,#150c04 100%);
+    box-shadow:inset 0 0 0 1px rgba(255,148,36,.5),0 0 26px -6px rgba(255,148,36,.55);
+    padding-left:calc(var(--pw) * .04);padding-right:calc(var(--pw) * .04);
+  }
+  .marquee::after{
+    content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(120% 180% at 50% 50%,rgba(255,190,110,.55),rgba(255,148,36,.12) 70%,transparent);
+    mix-blend-mode:screen;will-change:opacity;
+    animation:mq 4.4s ease-in-out infinite;
+  }
+  @keyframes mq{
+    0%{opacity:.10} 38%{opacity:.62} 44%{opacity:0} 47%{opacity:.85}
+    51%{opacity:.06} 55%{opacity:.7} 72%{opacity:.34} 100%{opacity:.10}
+  }
+  .aperture{
+    position:relative;margin:calc(var(--pw) * .07) auto 0;width:calc(var(--pw) * var(--apx));
+    max-width:calc(100% - var(--pw) * .14);
+    padding:calc(var(--pw) * .09) 0;border-radius:calc(var(--pw) * .05);
+    background:#01040a;
+    box-shadow:
+      inset 0 0 0 1px rgba(0,0,0,.95),
+      inset 0 12px 34px rgba(0,0,0,.9),
+      0 0 0 1.5px rgba(255,148,36,.7),
+      0 0 20px -4px rgba(255,148,36,.4);
+    display:flex;justify-content:center;
+  }
+  /* A brushed metal rail, a glass front, an island, side keys. The point of
+     the whole page rests on this reading as a phone at a glance. */
+  .phone{
+    position:relative;width:var(--pw);height:var(--ph);
+    border-radius:calc(var(--pw) * .135);
+    padding:calc(var(--pw) * .022);
+    background:linear-gradient(148deg,#8ea2b8 0%,#46525f 16%,#222a34 40%,
+                               #1a212a 62%,#3d4854 84%,#7d8fa3 100%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.22),
+      0 0 0 1px rgba(4,8,14,.9),
+      0 0 40px -8px rgba(55,208,245,.5),
+      0 14px 30px -12px rgba(0,0,0,.9);
+  }
+  /* side keys, standing slightly proud of the rail */
+  .key{
+    position:absolute;z-index:2;border-radius:calc(var(--pw) * .012);
+    background:linear-gradient(90deg,#7f92a6,#39424e 55%,#232a33);
+    box-shadow:0 0 0 .5px rgba(0,0,0,.55);
+  }
+  .key.vol{left:calc(var(--pw) * -.014);width:calc(var(--pw) * .017)}
+  .key.v1{top:22%;height:7.5%}
+  .key.v2{top:31.5%;height:7.5%}
+  .key.pwr{right:calc(var(--pw) * -.014);width:calc(var(--pw) * .017);top:26%;height:11%;
+    background:linear-gradient(270deg,#7f92a6,#39424e 55%,#232a33)}
+  .screen{
+    position:relative;width:100%;height:100%;overflow:hidden;
+    border-radius:calc(var(--pw) * .118);background:#000;
+  }
+  .screen iframe{display:block;width:100%;height:100%;border:0}
+  /* the island sits over the display, the way it does on the real thing */
+  .island{
+    position:absolute;z-index:4;top:calc(var(--pw) * .028);left:50%;
+    transform:translateX(-50%);
+    width:calc(var(--pw) * .30);height:calc(var(--pw) * .082);
+    border-radius:999px;background:#000;
+    box-shadow:0 0 0 .5px rgba(120,140,165,.35);
+    display:flex;align-items:center;justify-content:flex-end;
+    padding-right:calc(var(--pw) * .022);pointer-events:none;
+  }
+  .lens{
+    width:calc(var(--pw) * .036);height:calc(var(--pw) * .036);border-radius:50%;
+    background:radial-gradient(circle at 32% 28%,#3c5f7d 0%,#12202e 46%,#05090e 100%);
+    box-shadow:0 0 0 .5px rgba(150,180,210,.35),inset 0 0 2px rgba(120,200,255,.6);
+  }
+  /* glass: a light rake across the front, and the home indicator */
+  .glass{
+    position:absolute;inset:0;z-index:3;pointer-events:none;
+    border-radius:calc(var(--pw) * .118);
+    background:linear-gradient(118deg,
+      rgba(255,255,255,.11) 0%, rgba(255,255,255,.045) 13%,
+      rgba(255,255,255,0) 30%, rgba(255,255,255,0) 78%,
+      rgba(180,220,255,.05) 96%, rgba(180,220,255,.09) 100%);
+  }
+  .bar{
+    position:absolute;z-index:4;left:50%;transform:translateX(-50%);
+    bottom:calc(var(--pw) * .030);width:34%;height:calc(var(--pw) * .016);
+    border-radius:999px;background:rgba(255,255,255,.42);pointer-events:none;
+  }
+
+  .attract{
+    position:absolute;inset:0;width:100%;height:100%;border:0;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:calc(var(--pw) * .05);padding:8%;
+    background:
+      radial-gradient(85% 55% at 50% 74%, rgba(255,148,36,.20), transparent 70%),
+      linear-gradient(180deg,#05070f 0%,#0a1020 55%,#07050f 100%);
+    color:var(--ink);font:inherit;text-align:center;
+  }
+  .attract .title{
+    font:900 calc(var(--pw) * .155)/1 "Arial Black",Impact,system-ui,sans-serif;
+    letter-spacing:.02em;color:#fff;text-shadow:0 0 18px rgba(255,148,36,.75);
+  }
+  .attract .play{
+    width:calc(var(--pw) * .28);height:calc(var(--pw) * .28);border-radius:50%;
+    display:grid;place-items:center;
+    background:rgba(255,148,36,.14);box-shadow:0 0 0 1px rgba(255,148,36,.65),0 0 28px -6px rgba(255,148,36,.8);
+    transition:transform .18s ease, background .18s ease;
+  }
+  .attract .play svg{width:38%;height:38%;fill:var(--amber-lit);margin-left:8%}
+  .attract:hover .play,.attract:focus-visible .play{transform:scale(1.09);background:rgba(255,148,36,.24)}
+  .attract .hint{font:800 calc(var(--pw) * .045)/1.5 system-ui,sans-serif;letter-spacing:.2em;color:var(--ink-dim)}
+
+  /* Ten sliders at 157px wide is not a game, it is a diagram. Tap to expand
+     styles the phone in place rather than moving it, so the iframe is never
+     reloaded and the run survives. The Fullscreen API is skipped deliberately:
+     iOS Safari will not honour it on an iframe. */
+  .grow{
+    position:absolute;top:calc(var(--pw) * .075);right:calc(var(--pw) * .075);
+    z-index:4;width:calc(var(--pw) * .17);height:calc(var(--pw) * .17);
+    display:none;place-items:center;border:0;border-radius:calc(var(--pw) * .05);
+    background:rgba(6,13,24,.82);
+    box-shadow:inset 0 0 0 1px rgba(255,148,36,.55);cursor:pointer;
+  }
+  .phone.live .grow{display:grid}
+  .grow svg{width:52%;height:52%;fill:none;stroke:var(--amber-lit);stroke-width:2.4;
+    stroke-linecap:round;stroke-linejoin:round}
+  .grow:hover,.grow:focus-visible{background:rgba(255,148,36,.22)}
+
+  body.zoomed{overflow:hidden}
+  body.zoomed .phone.big{
+    position:fixed;inset:0;z-index:200;width:100%;height:100%;
+    padding:0;border-radius:0;box-shadow:none;background:#000;
+  }
+  body.zoomed .phone.big .island,
+  body.zoomed .phone.big .key,
+  body.zoomed .phone.big .glass,
+  body.zoomed .phone.big .bar,
+  body.zoomed .phone.big .grow{display:none}
+  body.zoomed .phone.big .screen{border-radius:0}
+  .shrink{
+    display:none;position:fixed;z-index:201;
+    top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));
+    width:40px;height:40px;place-items:center;border:0;border-radius:12px;cursor:pointer;
+    background:rgba(6,13,24,.86);
+    box-shadow:inset 0 0 0 1px rgba(255,148,36,.55);
+  }
+  body.zoomed .shrink{display:grid}
+  .shrink svg{width:18px;height:18px;fill:none;stroke:var(--amber-lit);stroke-width:2.6;
+    stroke-linecap:round}
+
+  /* The control panel: a printed overlay with real parts standing on it. */
+  .deck{
+    position:relative;margin:calc(var(--pw) * .075) calc(var(--pw) * .035) 0;
+    padding:calc(var(--pw) * .022) calc(var(--pw) * .028);
+    border-radius:calc(var(--pw) * .05);
+    background:linear-gradient(180deg,#101f31 0%,#0a1725 60%,#060e18 100%);
+    box-shadow:inset 0 3px 9px rgba(0,0,0,.7),0 2px 0 rgba(0,0,0,.5);
+  }
+  .panel{display:block;width:100%;height:auto}
+
+  /* coin door, because nothing says arcade faster */
+  .coin{
+    position:relative;margin:calc(var(--pw) * .05) calc(var(--pw) * .17) 0;
+    height:calc(var(--pw) * .115);border-radius:calc(var(--pw) * .02);
+    background:linear-gradient(180deg,#0a1524 0%,#060e19 100%);
+    box-shadow:inset 0 0 0 1px rgba(140,170,200,.35),inset 0 3px 7px rgba(0,0,0,.8);
+    display:flex;align-items:center;justify-content:center;gap:calc(var(--pw) * .05);
+  }
+  .slot{
+    width:calc(var(--pw) * .012);height:calc(var(--pw) * .058);border-radius:2px;
+    background:#000;box-shadow:0 0 0 1px rgba(190,215,240,.5),0 0 6px -1px rgba(55,208,245,.5);
+  }
+  .ret{
+    width:calc(var(--pw) * .1);height:calc(var(--pw) * .046);
+    border-radius:calc(var(--pw) * .01);background:linear-gradient(180deg,#1b2b3d,#0b1420);
+    box-shadow:inset 0 0 0 1px rgba(150,180,210,.4);
+  }
+
+  .cab .visit{
+    display:block;margin:18px auto 0;width:max-content;
+    font:800 11px/1 system-ui,sans-serif;letter-spacing:.18em;
+    color:var(--amber);text-decoration:none;border-bottom:1px solid rgba(255,148,36,.45);
+    padding-bottom:5px;
+  }
+  .cab .visit:hover{color:var(--amber-lit);border-bottom-color:var(--amber-lit)}
+
+  /* The studio. Its own mark across the top, the facts underneath, in the
+     same materials as the machines. */
+  .op{width:min(720px,100%);margin:0 auto}
+  .op-body{
+    position:relative;padding:0 0 calc(var(--pw) * .075);
+    border-radius:calc(var(--pw) * .06);overflow:hidden;
+    background:linear-gradient(180deg,#22496f 0%,#173352 34%,#0d2039 100%);
+    box-shadow:
+      inset 0 0 0 1.5px rgba(55,208,245,.5),
+      inset 0 1px 0 rgba(180,232,255,.3),
+      0 0 0 2px rgba(255,148,36,.8),
+      0 0 30px -6px rgba(255,148,36,.4),
+      0 0 70px -20px rgba(55,208,245,.55),
+      0 30px 60px -28px rgba(0,0,0,.95);
+  }
+  /* The studio header is the one place that carries the rendered mark rather
+     than the drawn line version. It is the only image on the site. */
+  .banner{position:relative;line-height:0;background:#071324;overflow:hidden}
+  .banner img{display:block;width:100%;height:auto}
+  .banner::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,transparent 64%,rgba(17,45,74,.5) 87%,#173352 100%),
+               linear-gradient(90deg,rgba(23,51,82,.45),transparent 8%,transparent 92%,rgba(23,51,82,.45));
+    box-shadow:inset 0 -1px 0 rgba(255,148,36,.4);
+  }
+
+  .op-info{padding:calc(var(--pw) * .06) calc(var(--pw) * .075) 0}
+  .op-info .eyebrow{
+    display:block;margin-bottom:7px;font:800 10px/1 system-ui,sans-serif;
+    letter-spacing:.28em;word-spacing:.5em;color:var(--cyan);opacity:.85;
+  }
+  .op-info h2{
+    font:900 clamp(20px,5vw,30px)/1 "Arial Black",Impact,system-ui,sans-serif;
+    color:#fff;letter-spacing:.01em;text-shadow:0 0 18px rgba(255,148,36,.6);
+  }
+  .op-bio{margin-top:9px;color:var(--ink-dim);font-size:13px;line-height:1.55;max-width:34ch}
+  .op-credit{margin-top:13px;font-size:11px;color:var(--ink-dim);letter-spacing:.05em}
+  .op-credit span{color:var(--amber);font-weight:700}
+
+  .hi{margin-top:16px;font:700 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .hi .row{display:flex;align-items:baseline;gap:6px;padding:5px 0}
+  .hi dt{white-space:nowrap;color:#9fc4e2;letter-spacing:.06em}
+  .hi .dots{flex:1;border-bottom:1px dotted rgba(120,160,195,.45);transform:translateY(-3px)}
+  .hi dd{margin:0;white-space:nowrap;color:var(--amber-lit);letter-spacing:.06em}
+  .hi .zero dd{color:#5fe08a}
+
+  .op-btn{
+    display:inline-flex;align-items:center;gap:9px;margin-top:18px;
+    padding:11px 17px;border-radius:999px;text-decoration:none;
+    background:radial-gradient(circle at 34% 26%,#ffd9a2,#ff9424 58%,#a04d06);
+    color:#2a1402;font:800 11px/1 system-ui,sans-serif;letter-spacing:.16em;
+    box-shadow:0 0 0 1px rgba(255,214,150,.6),0 6px 18px -6px rgba(255,148,36,.8),
+               inset 0 1px 0 rgba(255,255,255,.5);
+  }
+  .op-btn svg{width:13px;height:13px;fill:currentColor}
+  .op-btn:hover{filter:brightness(1.08)}
+
+
+
+  /* ------------------------------------------------------------------
+     Novlr. Quieter work by the same person, under a different label. The
+     contrast is the argument, so nothing here borrows the arcade's clothes:
+     paper instead of neon, serif instead of Arial Black, a link instead of
+     a button. No embeds. These are dailies and they are reading, and a
+     paragraph of Victorian prose in a 268px bezel serves nobody.
+     ------------------------------------------------------------------ */
+  .novlr{width:min(940px,100%);margin:0 auto;position:relative}
+  .novlr::before{
+    content:"";position:absolute;left:50%;top:-6%;transform:translateX(-50%);
+    width:118%;height:112%;pointer-events:none;
+    background:radial-gradient(60% 50% at 50% 45%,rgba(247,240,224,.10),transparent 70%);
+  }
+  .novlr .eyebrow{
+    display:block;text-align:center;margin-bottom:clamp(20px,3.5vw,32px);
+    font:800 10px/1 system-ui,sans-serif;letter-spacing:.28em;word-spacing:.5em;
+    color:#d9cdb4;opacity:.8;
+  }
+  .papers{display:grid;gap:clamp(20px,3vw,30px);grid-template-columns:1fr}
+  @media (min-width:760px){ .papers{grid-template-columns:1fr 1fr} }
+
+  .paper{
+    display:block;text-decoration:none;position:relative;overflow:hidden;
+    padding:clamp(22px,3.4vw,32px) clamp(20px,3vw,30px) clamp(18px,2.6vw,26px);
+    border-radius:5px;background:#f7f3ea;color:#1c1a17;
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    box-shadow:0 0 0 1px rgba(28,26,23,.10),0 26px 50px -26px rgba(0,0,0,.9),
+               0 0 46px -20px rgba(247,240,224,.35);
+    transition:transform .22s ease, box-shadow .22s ease;
+  }
+  .paper:hover,.paper:focus-visible{
+    transform:translateY(-3px);
+    box-shadow:0 0 0 1px rgba(28,26,23,.14),0 32px 56px -26px rgba(0,0,0,.95),
+               0 0 60px -18px rgba(247,240,224,.5);
+  }
+  .paper h3{
+    text-align:center;font-weight:600;font-size:clamp(17px,3.6vw,21px);
+    letter-spacing:.14em;color:#171512;
+  }
+  .paper h3 em{font-style:italic;font-weight:400;letter-spacing:.02em;font-size:.92em}
+  .paper .lede{
+    margin-top:11px;text-align:center;font-size:13.5px;line-height:1.5;
+    font-style:italic;color:#8b857a;
+  }
+  .paper .rule{margin:clamp(16px,2.4vw,22px) 0;border:0;border-top:1px solid #e2dbcc}
+
+  .paper .taste{font-size:13.5px;line-height:1.62;color:#2a2620}
+  .paper .taste .chip{
+    display:inline-block;padding:2px 8px;margin:0 3px;border-radius:3px;
+    background:#e9e2d2;color:#6f685c;font-size:10.5px;letter-spacing:.13em;
+    vertical-align:1px;white-space:nowrap;
+  }
+  .paper .ask{margin-top:14px;text-align:center;font-style:italic;font-size:12.5px;color:#8b857a}
+  .paper .opts{display:flex;gap:7px;justify-content:center;margin-top:10px}
+  .paper .opts span{
+    width:26px;height:26px;display:grid;place-items:center;border-radius:3px;
+    border:1px solid #e2dbcc;background:#fbf8f2;font-size:12px;color:#6f685c;
+  }
+
+  .paper .room{text-align:center;font-style:italic;font-size:15px;color:#1c1a17}
+  .paper .kind{
+    display:block;margin-top:5px;font-size:10px;letter-spacing:.24em;
+    font-family:system-ui,sans-serif;font-weight:600;color:#9a9384;
+  }
+  .paper .meta{margin-top:9px;text-align:center;font-size:12px;color:#8b857a}
+  .paper .door{
+    margin-top:10px;padding:11px 13px;border:1px solid #e2dbcc;border-radius:3px;
+    background:#fbf8f2;font-size:12.5px;line-height:1.5;color:#2a2620;
+  }
+  .paper .go{
+    display:block;margin-top:clamp(18px,2.6vw,24px);text-align:center;
+    font-family:system-ui,sans-serif;font-weight:800;font-size:10px;
+    letter-spacing:.2em;color:#8a5a1c;
+  }
+  .paper .go::after{content:" \2192"}
+
+  .foot{padding:0 20px clamp(44px,7vw,80px);text-align:center;color:var(--ink-dim);font-size:13px}
+  /* letter-spacing on its own closes the gap between words, because HTML
+     collapses the extra spaces. word-spacing puts it back. */
+  .foot .sub{display:block;margin-top:11px;letter-spacing:.26em;font-size:13px;
+    font-weight:800;color:var(--amber-lit);opacity:.75}
+  .foot .tag{display:block;margin-top:14px;letter-spacing:.26em;word-spacing:.9em;
+    font-size:12px;font-weight:800;color:var(--amber)}
+  /* letter-spacing tracks after every character, punctuation included, which
+     detaches the full stop from the word it ends. Pull it back. */
+  .foot .tag i{font-style:normal;margin-left:-.24em;letter-spacing:.26em}
+  .foot .mark-glyph{
+    display:block;width:52px;height:49px;margin:0 auto 16px;
+    filter:drop-shadow(0 0 10px rgba(0,229,255,.55));
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <symbol id="wm" viewBox="0 0 4789 719">
+    <path d="M182 502H0Q2 571 38.5 620Q75 669 136 694Q197 719 274 719Q353 719 411 690Q469 661 499.5 612Q530 563 530 503Q530 440 499 400Q468 360 425.5 339Q383 318 315 295Q247 273 215 254Q183 235 183 201Q183 170 202 153.5Q221 137 252 137Q288 137 311 156.5Q334 176 336 210H521Q516 111 445 55.5Q374 0 258 0Q144 0 73 55.5Q2 111 2 209Q2 275 33 316Q64 357 107 378Q150 399 218 420Q265 434 290.5 445Q316 456 333.5 473Q351 490 351 516Q351 547 329 564.5Q307 582 269 582Q232 582 209 561.5Q186 541 182 502ZM1177 712H1348V10H1177V445L891 10H720V712H891V279L1177 712ZM1732 588H1994L2036 712H2217L1963 10H1765L1511 712H1690L1732 588ZM1863 199 1950 456H1777L1863 199ZM2550 460H2656Q2742 460 2800 429Q2858 398 2886 347.5Q2914 297 2914 236Q2914 170 2885 119Q2856 68 2798 39Q2740 10 2656 10H2379V712H2550V460ZM2716 171Q2740 194 2740 236Q2740 278 2716 301Q2692 324 2643 324H2550V148H2643Q2692 148 2716 171ZM3696 712V10H3525V285H3259V10H3088V712H3259V423H3525V712H3696ZM3904 10V712H4075V10ZM4789 147V10H4246V147H4432V712H4603V147H4789Z" fill="#ffffff" stroke="currentColor"
+          stroke-linejoin="round" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+
+<section class="hero" id="top">
+  <iframe id="heroGame" src="play/snaphit.html" title="We Love Games: a playable demo"
+          scrolling="no"></iframe>
+  <button class="down" id="down" type="button" aria-label="See what else is here">
+    <span>MORE</span>
+    <svg viewBox="0 0 20 12" aria-hidden="true">
+      <path d="M2 2 L10 10 L18 2" fill="none" stroke="currentColor" stroke-width="2.4"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+</section>
+
+<section class="shelf" id="shelf">
+  <h1 class="sr">SnapHit Studios turns phones into arcade machines. Original browser
+     games, free, no ads, no sign-in, nothing to install.</h1>
+
+  <div class="bridge" aria-hidden="true"><span class="thread"></span></div>
+
+  <div class="rack" id="rack"></div>
+
+  <div class="gap" aria-hidden="true"><span class="thread"></span></div>
+
+  <section class="op">
+    <div class="op-body">
+      <div class="banner">
+        <img src="studio.jpg" width="1200" height="578" loading="lazy" decoding="async"
+             alt="The SnapHit Studios mark: a circuit-plated arcade joystick on a lit deck">
+      </div>
+      <div class="op-info">
+        <span class="eyebrow">THE STUDIO</span>
+        <h2 class="sr">SnapHit Studios</h2>
+        <p class="op-bio">A one-person game studio. Built in the open,
+           shipped straight to a browser, finished when you tap it.</p>
+
+        <dl class="hi">
+          <div class="row"><dt>GAMES SHIPPED</dt><span class="dots"></span><dd>04</dd></div>
+          <div class="row"><dt>IN DEVELOPMENT</dt><span class="dots"></span><dd>01</dd></div>
+          <div class="row zero"><dt>ADS SERVED</dt><span class="dots"></span><dd>00</dd></div>
+          <div class="row zero"><dt>SIGN-UPS REQUIRED</dt><span class="dots"></span><dd>00</dd></div>
+          <div class="row zero"><dt>INSTALL SIZE</dt><span class="dots"></span><dd>0 MB</dd></div>
+        </dl>
+
+        <a class="op-btn" href="https://www.youtube.com/@GamerNate" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3 L21 12 L6 21 Z"/></svg>
+          WATCH THE BUILD
+        </a>
+        <p class="op-credit">Made by Nate &middot; <span>@GamerNate</span></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="gap" aria-hidden="true"><span class="thread"></span></div>
+
+  <section class="novlr">
+    <span class="eyebrow">ELSEWHERE &middot; NOVLR</span>
+    <div class="papers">
+
+      <a class="paper" href="https://novlr.com" target="_blank" rel="noopener">
+        <h3>FORGERY</h3>
+        <p class="lede">A new puzzle every day, easing in on Monday and building to
+           the Sunday challenge. Can you beat the bots?</p>
+        <hr class="rule">
+        <p class="taste">&hellip;look so vast and illimitable as on the previous night.
+           <span class="chip">MISSING SENTENCE</span> But in this he was disappointed.
+           No sooner had he passed the curve of the shore than he saw that the skipper
+           and his craft were gone.</p>
+        <p class="ask">Which sentence fills the gap?</p>
+        <p class="opts"><span>A</span><span>B</span><span>C</span><span>D</span></p>
+        <span class="go">PLAY ON NOVLR</span>
+      </a>
+
+      <a class="paper" href="https://novlr.com/escape" target="_blank" rel="noopener">
+        <h3>ESCAPE <em>(or die)</em></h3>
+        <p class="lede">A story-maze. One path leads out. Every other door kills you.</p>
+        <hr class="rule">
+        <p class="room">Station Varekind Threshold<span class="kind">SPACE STATION</span></p>
+        <p class="meta">room 1 of 4 &middot; doors opened 0 &middot; par 4</p>
+        <p class="door">A chipped safety orange hatch, no stencil on its face, pulses a
+           live readout in green beside the frame.</p>
+        <p class="door">An off-white hatch, stencilled with a large block letter A,
+           stands silent beside its dead and darkened panel.</p>
+        <span class="go">PLAY ON NOVLR</span>
+      </a>
+
+    </div>
+  </section>
+</section>
+
+<button class="shrink" id="shrink" type="button" aria-label="Close full screen">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
+</button>
+
+<footer class="foot">
+  <svg class="mark-glyph" viewBox="0 0 64 60" aria-hidden="true">
+    <g fill="none" stroke="#00e5ff" stroke-linecap="round" stroke-linejoin="round">
+      <g opacity=".28" stroke-width="6">
+        <ellipse cx="32" cy="46" rx="21" ry="7.5"/>
+        <path d="M32 43.5 V25"/>
+        <circle cx="32" cy="17" r="8.5"/>
+      </g>
+      <g stroke-width="2.2">
+        <ellipse cx="32" cy="46" rx="21" ry="7.5"/>
+        <ellipse cx="32" cy="46" rx="11" ry="3.9" opacity=".55"/>
+        <path d="M32 43.5 V25"/>
+        <circle cx="32" cy="17" r="8.5"/>
+      </g>
+    </g>
+  </svg>
+  <svg class="wm wm-foot" viewBox="0 0 4789 719" role="img" aria-label="SnapHit"><use href="#wm"/></svg>
+  <span class="sub">STUDIOS</span>
+  <span class="tag">INSTANT<i>.</i> PLAY<i>.</i></span>
+</footer>
+
+<script>
+"use strict";
+
+/* ---------------- the shelf. One entry per game. ---------------- */
+const GAMES = [
+  {
+    slug: 'hurtle',
+    name: 'Hurtle',
+    src:  'play/hurtle.html',
+    site: 'https://hurtle.site'
+  },
+  {
+    slug: 'beakdown',
+    name: 'Beakdown',
+    src:  'play/beakdown.html',
+    site: 'https://beakdown.fun'
+  }
+];
+
+const rack = document.getElementById('rack');
+const frames = [];
+
+for (const g of GAMES){
+  const cab = document.createElement('article');
+  cab.className = 'cab';
+  cab.innerHTML =
+    '<div class="cab-body">' +
+      '<div class="marquee"><svg class="wm wm-marq" viewBox="0 0 4789 719" role="img" aria-label="SnapHit"><use href="#wm"/></svg></div>' +
+      '<div class="aperture">' +
+        '<div class="phone">' +
+          '<span class="key vol v1"></span><span class="key vol v2"></span>' +
+          '<span class="key pwr"></span>' +
+          '<button class="grow" type="button" aria-label="Expand to full screen">' +
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg>' +
+          '</button>' +
+          '<div class="screen">' +
+            '<button class="attract" type="button">' +
+              '<span class="title"></span>' +
+              '<span class="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3 L21 12 L6 21 Z"/></svg></span>' +
+              '<span class="hint">TAP TO PLAY</span>' +
+            '</button>' +
+            '<div class="island"><span class="lens"></span></div>' +
+            '<div class="glass"></div><div class="bar"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="deck">' +
+        "<svg class=\"panel\" viewBox=\"0 0 200 74\" aria-hidden=\"true\"><defs><linearGradient id=\"gwall\" x1=\"0\" x2=\"1\"><stop offset=\"0\" stop-color=\"#0a1420\"/><stop offset=\".35\" stop-color=\"#223a52\"/><stop offset=\".62\" stop-color=\"#16283b\"/><stop offset=\"1\" stop-color=\"#070e18\"/></linearGradient><radialGradient id=\"gface\" cx=\"40%\" cy=\"26%\" r=\"82%\"><stop offset=\"0\" stop-color=\"#1d3a55\"/><stop offset=\".62\" stop-color=\"#0e2135\"/><stop offset=\"1\" stop-color=\"#060e18\"/></radialGradient><linearGradient id=\"gstem\" x1=\"0\" x2=\"1\"><stop offset=\"0\" stop-color=\"#6b4a12\"/><stop offset=\".26\" stop-color=\"#ffe0a0\"/><stop offset=\".52\" stop-color=\"#c9922e\"/><stop offset=\"1\" stop-color=\"#4d3208\"/></linearGradient><radialGradient id=\"gorb\" cx=\"34%\" cy=\"26%\" r=\"80%\"><stop offset=\"0\" stop-color=\"#16233a\"/><stop offset=\".7\" stop-color=\"#080f1b\"/><stop offset=\"1\" stop-color=\"#03060c\"/></radialGradient><radialGradient id=\"gb1\" cx=\"32%\" cy=\"24%\" r=\"82%\"><stop offset=\"0\" stop-color=\"#fff\"/><stop offset=\".28\" stop-color=\"#93ecff\"/><stop offset=\".7\" stop-color=\"#1fbde8\"/><stop offset=\"1\" stop-color=\"#06566f\"/></radialGradient><radialGradient id=\"gb2\" cx=\"32%\" cy=\"24%\" r=\"82%\"><stop offset=\"0\" stop-color=\"#fff7e6\"/><stop offset=\".28\" stop-color=\"#ffc478\"/><stop offset=\".7\" stop-color=\"#ff8c1c\"/><stop offset=\"1\" stop-color=\"#853a03\"/></radialGradient><radialGradient id=\"gb3\" cx=\"32%\" cy=\"24%\" r=\"82%\"><stop offset=\"0\" stop-color=\"#fff\"/><stop offset=\".28\" stop-color=\"#ffe4b0\"/><stop offset=\".7\" stop-color=\"#ffb43f\"/><stop offset=\"1\" stop-color=\"#855105\"/></radialGradient><clipPath id=\"deck\"><rect x=\"5\" y=\"4\" width=\"190\" height=\"66\" rx=\"9\"/></clipPath></defs><rect x=\"5\" y=\"4\" width=\"190\" height=\"66\" rx=\"9\" fill=\"#050b14\"/><g clip-path=\"url(#deck)\" opacity=\".55\"><line x1=\"14\" y1=\"4\" x2=\"14\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"27\" y1=\"4\" x2=\"27\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"40\" y1=\"4\" x2=\"40\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"53\" y1=\"4\" x2=\"53\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"66\" y1=\"4\" x2=\"66\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"79\" y1=\"4\" x2=\"79\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"92\" y1=\"4\" x2=\"92\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"105\" y1=\"4\" x2=\"105\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"118\" y1=\"4\" x2=\"118\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"131\" y1=\"4\" x2=\"131\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"144\" y1=\"4\" x2=\"144\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"157\" y1=\"4\" x2=\"157\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"170\" y1=\"4\" x2=\"170\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"183\" y1=\"4\" x2=\"183\" y2=\"70\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"5\" y1=\"11\" x2=\"195\" y2=\"11\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"5\" y1=\"22\" x2=\"195\" y2=\"22\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"5\" y1=\"33\" x2=\"195\" y2=\"33\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"5\" y1=\"44\" x2=\"195\" y2=\"44\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"5\" y1=\"55\" x2=\"195\" y2=\"55\" stroke=\"#2ba6d8\" stroke-width=\".4\"/><line x1=\"5\" y1=\"66\" x2=\"195\" y2=\"66\" stroke=\"#2ba6d8\" stroke-width=\".4\"/></g><rect x=\"5\" y=\"4\" width=\"190\" height=\"66\" rx=\"9\" fill=\"none\" stroke=\"#ff9424\" stroke-width=\"3.4\" opacity=\".18\"/><rect x=\"5\" y=\"4\" width=\"190\" height=\"66\" rx=\"9\" fill=\"none\" stroke=\"#ff9424\" stroke-width=\"1.8\" opacity=\".55\"/><rect x=\"5\" y=\"4\" width=\"190\" height=\"66\" rx=\"9\" fill=\"none\" stroke=\"#ffd9a2\" stroke-width=\".8\"/><ellipse cx=\"46\" cy=\"49\" rx=\"22.5\" ry=\"7.4\" fill=\"#02060c\" opacity=\".6\"/><path d=\"M25.00 43.00 A21.00 6.90 0 0 0 67.00 43.00 L67.00 47.20 A21.00 6.90 0 0 1 25.00 47.20 Z\" fill=\"url(#gwall)\"/><path d=\"M25.00 44.26 A21.00 6.90 0 0 0 67.00 44.26\" fill=\"none\" stroke=\"#ff9a24\" stroke-width=\".34\" opacity=\"0.68\"/><path d=\"M25.00 45.60 A21.00 6.90 0 0 0 67.00 45.60\" fill=\"none\" stroke=\"#ff9a24\" stroke-width=\".34\" opacity=\"0.59\"/><path d=\"M25.00 46.86 A21.00 6.90 0 0 0 67.00 46.86\" fill=\"none\" stroke=\"#ff9a24\" stroke-width=\".34\" opacity=\"0.52\"/><ellipse cx=\"46\" cy=\"43\" rx=\"21\" ry=\"6.9\" fill=\"url(#gface)\"/><ellipse cx=\"46\" cy=\"43\" rx=\"21\" ry=\"6.9\" fill=\"none\" stroke=\"#ff9424\" stroke-width=\"1.5\" opacity=\".5\"/><ellipse cx=\"46\" cy=\"43\" rx=\"21\" ry=\"6.9\" fill=\"none\" stroke=\"#ffd9a2\" stroke-width=\".6\"/><rect x=\"55.62\" y=\"43.12\" width=\"1.50\" height=\"0.85\" rx=\".25\" fill=\"#ffb04a\" opacity=\".85\"/><rect x=\"58.14\" y=\"44.41\" width=\"2.00\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"59.20\" y=\"46.13\" width=\"2.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"53.10\" y=\"45.73\" width=\"1.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"51.95\" y=\"47.37\" width=\"2.00\" height=\"0.85\" rx=\".25\" fill=\"#ffb04a\" opacity=\".85\"/><rect x=\"46.86\" y=\"45.95\" width=\"2.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"44.69\" y=\"47.26\" width=\"1.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"39.99\" y=\"48.28\" width=\"2.00\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"38.57\" y=\"46.10\" width=\"2.50\" height=\"0.85\" rx=\".25\" fill=\"#ffb04a\" opacity=\".85\"/><rect x=\"34.06\" y=\"46.41\" width=\"1.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"36.13\" y=\"44.42\" width=\"2.00\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"31.21\" y=\"44.07\" width=\"2.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"27.25\" y=\"43.06\" width=\"1.50\" height=\"0.85\" rx=\".25\" fill=\"#ffb04a\" opacity=\".85\"/><rect x=\"32.77\" y=\"41.93\" width=\"2.00\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"29.87\" y=\"40.50\" width=\"2.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"36.85\" y=\"40.51\" width=\"1.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"35.96\" y=\"38.94\" width=\"2.00\" height=\"0.85\" rx=\".25\" fill=\"#ffb04a\" opacity=\".85\"/><rect x=\"36.99\" y=\"37.22\" width=\"2.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"42.76\" y=\"38.59\" width=\"1.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"45.63\" y=\"37.27\" width=\"2.00\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"47.66\" y=\"39.26\" width=\"2.50\" height=\"0.85\" rx=\".25\" fill=\"#ffb04a\" opacity=\".85\"/><rect x=\"52.38\" y=\"38.51\" width=\"1.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"57.50\" y=\"38.29\" width=\"2.00\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"55.21\" y=\"40.40\" width=\"2.50\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><rect x=\"60.58\" y=\"40.89\" width=\"1.50\" height=\"0.85\" rx=\".25\" fill=\"#ffb04a\" opacity=\".85\"/><rect x=\"55.47\" y=\"42.29\" width=\"2.00\" height=\"0.85\" rx=\".25\" fill=\"#4fd8ff\" opacity=\".85\"/><line x1=\"54.43\" y1=\"43.86\" x2=\"63.25\" y2=\"44.75\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"53.03\" y1=\"44.75\" x2=\"60.39\" y2=\"46.59\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"50.78\" y1=\"45.44\" x2=\"55.79\" y2=\"47.99\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"47.96\" y1=\"45.83\" x2=\"50.00\" y2=\"48.79\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"44.90\" y1=\"45.88\" x2=\"43.74\" y2=\"48.89\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"41.97\" y1=\"45.58\" x2=\"37.75\" y2=\"48.28\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"39.53\" y1=\"44.97\" x2=\"32.75\" y2=\"47.03\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"37.87\" y1=\"44.12\" x2=\"29.35\" y2=\"45.30\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"37.19\" y1=\"43.14\" x2=\"27.96\" y2=\"43.29\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"37.57\" y1=\"42.14\" x2=\"28.75\" y2=\"41.25\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"38.97\" y1=\"41.25\" x2=\"31.61\" y2=\"39.41\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"41.22\" y1=\"40.56\" x2=\"36.21\" y2=\"38.01\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"44.04\" y1=\"40.17\" x2=\"42.00\" y2=\"37.21\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"47.10\" y1=\"40.12\" x2=\"48.26\" y2=\"37.11\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"50.03\" y1=\"40.42\" x2=\"54.25\" y2=\"37.72\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"52.47\" y1=\"41.03\" x2=\"59.25\" y2=\"38.97\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"54.13\" y1=\"41.88\" x2=\"62.65\" y2=\"40.70\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><line x1=\"54.81\" y1=\"42.86\" x2=\"64.04\" y2=\"42.71\" stroke=\"#ff9a24\" stroke-width=\".38\" opacity=\".72\"/><ellipse cx=\"46\" cy=\"43\" rx=\"15.5\" ry=\"5.1\" fill=\"none\" stroke=\"#2ba6d8\" stroke-width=\".4\" opacity=\".7\"/><ellipse cx=\"46\" cy=\"43\" rx=\"10.5\" ry=\"3.5\" fill=\"none\" stroke=\"#ff9a24\" stroke-width=\".5\" opacity=\".8\"/><ellipse cx=\"46\" cy=\"42.4\" rx=\"7.6\" ry=\"2.5\" fill=\"#0d1c2c\" stroke=\"#ffb04a\" stroke-width=\".45\"/><ellipse cx=\"46\" cy=\"41.6\" rx=\"5.2\" ry=\"1.75\" fill=\"#152a40\" stroke=\"#ffd9a2\" stroke-width=\".4\"/><ellipse cx=\"46\" cy=\"40.9\" rx=\"3.1\" ry=\"1.05\" fill=\"#070f1a\" stroke=\"#ffb04a\" stroke-width=\".35\"/><path d=\"M43.6 41 L44.3 24.6 L47.7 24.6 L48.4 41 Z\" fill=\"url(#gstem)\"/><ellipse cx=\"46\" cy=\"24.8\" rx=\"2.6\" ry=\".9\" fill=\"#ffe0a0\" opacity=\".85\"/><circle cx=\"46\" cy=\"16.5\" r=\"10.2\" fill=\"url(#gorb)\"/><path d=\"M46.84 7.26 L46.00 7.75 L45.16 7.26 L45.16 6.30 L46.00 5.81 L46.84 6.30 Z\" fill=\"rgb(30,31,33)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M42.84 9.82 L41.79 10.42 L40.74 9.82 L40.74 8.60 L41.79 8.00 L42.84 8.60 Z\" fill=\"rgb(139,111,70)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M45.74 9.87 L44.60 10.53 L43.45 9.87 L43.45 8.55 L44.60 7.89 L45.74 8.55 Z\" fill=\"rgb(108,88,60)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M48.55 9.87 L47.40 10.53 L46.26 9.87 L46.26 8.55 L47.40 7.89 L48.55 8.55 Z\" fill=\"rgb(44,41,38)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M51.26 9.82 L50.21 10.42 L49.16 9.82 L49.16 8.60 L50.21 8.00 L51.26 8.60 Z\" fill=\"rgb(10,16,26)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M38.42 12.12 L37.58 12.61 L36.75 12.12 L36.75 11.16 L37.58 10.67 L38.42 11.16 Z\" fill=\"rgb(95,78,55)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M41.54 12.30 L40.39 12.96 L39.24 12.30 L39.24 10.98 L40.39 10.32 L41.54 10.98 Z\" fill=\"rgb(174,136,82)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M44.46 12.37 L43.19 13.11 L41.93 12.37 L41.93 10.91 L43.19 10.17 L44.46 10.91 Z\" fill=\"rgb(186,143,84)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M47.30 12.39 L46.00 13.15 L44.70 12.39 L44.70 10.89 L46.00 10.13 L47.30 10.89 Z\" fill=\"rgb(122,91,56)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M50.07 12.37 L48.81 13.11 L47.54 12.37 L47.54 10.91 L48.81 10.17 L50.07 10.91 Z\" fill=\"rgb(42,32,28)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M52.76 12.30 L51.61 12.96 L50.46 12.30 L50.46 10.98 L51.61 10.32 L52.76 10.98 Z\" fill=\"rgb(10,16,26)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M55.25 12.12 L54.42 12.61 L53.58 12.12 L53.58 11.16 L54.42 10.67 L55.25 11.16 Z\" fill=\"rgb(10,16,26)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M40.13 14.73 L38.99 15.39 L37.84 14.73 L37.84 13.41 L38.99 12.75 L40.13 13.41 Z\" fill=\"rgb(117,94,63)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M43.10 14.82 L41.79 15.58 L40.49 14.82 L40.49 13.32 L41.79 12.56 L43.10 13.32 Z\" fill=\"rgb(179,133,76)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M45.97 14.86 L44.60 15.65 L43.23 14.86 L43.23 13.28 L44.60 12.49 L45.97 13.28 Z\" fill=\"rgb(170,116,60)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M48.77 14.86 L47.40 15.65 L46.03 14.86 L46.03 13.28 L47.40 12.49 L48.77 13.28 Z\" fill=\"rgb(127,74,34)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M51.51 14.82 L50.21 15.58 L48.90 14.82 L48.90 13.32 L50.21 12.56 L51.51 13.32 Z\" fill=\"rgb(66,37,21)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M54.16 14.73 L53.01 15.39 L51.87 14.73 L51.87 13.41 L53.01 12.75 L54.16 13.41 Z\" fill=\"rgb(13,17,26)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M38.63 17.11 L37.58 17.71 L36.53 17.11 L36.53 15.89 L37.58 15.29 L38.63 15.89 Z\" fill=\"rgb(41,39,37)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M41.66 17.23 L40.39 17.97 L39.12 17.23 L39.12 15.77 L40.39 15.03 L41.66 15.77 Z\" fill=\"rgb(122,84,48)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M44.57 17.29 L43.19 18.08 L41.82 17.29 L41.82 15.71 L43.19 14.92 L44.57 15.71 Z\" fill=\"rgb(167,101,45)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M47.40 17.31 L46.00 18.12 L44.60 17.31 L44.60 15.69 L46.00 14.88 L47.40 15.69 Z\" fill=\"rgb(179,91,27)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M50.18 17.29 L48.81 18.08 L47.43 17.29 L47.43 15.71 L48.81 14.92 L50.18 15.71 Z\" fill=\"rgb(136,62,15)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M52.88 17.23 L51.61 17.97 L50.34 17.23 L50.34 15.77 L51.61 15.03 L52.88 15.77 Z\" fill=\"rgb(74,39,20)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M55.47 17.11 L54.42 17.71 L53.37 17.11 L53.37 15.89 L54.42 15.29 L55.47 15.89 Z\" fill=\"rgb(10,16,26)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M40.13 19.59 L38.99 20.25 L37.84 19.59 L37.84 18.27 L38.99 17.61 L40.13 18.27 Z\" fill=\"rgb(39,27,23)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M43.10 19.68 L41.79 20.44 L40.49 19.68 L40.49 18.18 L41.79 17.42 L43.10 18.18 Z\" fill=\"rgb(118,60,22)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M45.97 19.72 L44.60 20.51 L43.23 19.72 L43.23 18.14 L44.60 17.35 L45.97 18.14 Z\" fill=\"rgb(183,79,11)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M48.77 19.72 L47.40 20.51 L46.03 19.72 L46.03 18.14 L47.40 17.35 L48.77 18.14 Z\" fill=\"rgb(193,83,10)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M51.51 19.68 L50.21 20.44 L48.90 19.68 L48.90 18.18 L50.21 17.42 L51.51 18.18 Z\" fill=\"rgb(121,57,16)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M54.16 19.59 L53.01 20.25 L51.87 19.59 L51.87 18.27 L53.01 17.61 L54.16 18.27 Z\" fill=\"rgb(50,30,23)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M38.42 21.84 L37.58 22.33 L36.75 21.84 L36.75 20.88 L37.58 20.39 L38.42 20.88 Z\" fill=\"rgb(10,16,26)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M41.54 22.02 L40.39 22.68 L39.24 22.02 L39.24 20.70 L40.39 20.04 L41.54 20.70 Z\" fill=\"rgb(61,35,22)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M44.46 22.09 L43.19 22.83 L41.93 22.09 L41.93 20.63 L43.19 19.89 L44.46 20.63 Z\" fill=\"rgb(122,57,16)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M47.30 22.11 L46.00 22.87 L44.70 22.11 L44.70 20.61 L46.00 19.85 L47.30 20.61 Z\" fill=\"rgb(157,70,13)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M50.07 22.09 L48.81 22.83 L47.54 22.09 L47.54 20.63 L48.81 19.89 L50.07 20.63 Z\" fill=\"rgb(130,60,16)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M52.76 22.02 L51.61 22.68 L50.46 22.02 L50.46 20.70 L51.61 20.04 L52.76 20.70 Z\" fill=\"rgb(70,38,21)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M55.25 21.84 L54.42 22.33 L53.58 21.84 L53.58 20.88 L54.42 20.39 L55.25 20.88 Z\" fill=\"rgb(10,16,26)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M42.84 24.40 L41.79 25.00 L40.74 24.40 L40.74 23.18 L41.79 22.58 L42.84 23.18 Z\" fill=\"rgb(52,32,22)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M45.74 24.45 L44.60 25.11 L43.45 24.45 L43.45 23.13 L44.60 22.47 L45.74 23.13 Z\" fill=\"rgb(88,45,19)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M48.55 24.45 L47.40 25.11 L46.26 24.45 L46.26 23.13 L47.40 22.47 L48.55 23.13 Z\" fill=\"rgb(91,46,19)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M51.26 24.40 L50.21 25.00 L49.16 24.40 L49.16 23.18 L50.21 22.58 L51.26 23.18 Z\" fill=\"rgb(59,34,22)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><path d=\"M46.84 26.70 L46.00 27.19 L45.16 26.70 L45.16 25.74 L46.00 25.25 L46.84 25.74 Z\" fill=\"rgb(33,24,24)\" stroke=\"rgba(120,200,240,.20)\" stroke-width=\".18\"/><ellipse cx=\"41.9\" cy=\"11.6\" rx=\"3.3\" ry=\"2.1\" fill=\"#eaf6ff\" opacity=\".5\"/><path d=\"M38.4 23.6 a10.2 10.2 0 0 0 15 -1.4\" fill=\"none\" stroke=\"#ffb04a\" stroke-width=\".9\" opacity=\".5\"/><circle cx=\"46\" cy=\"16.5\" r=\"10.2\" fill=\"none\" stroke=\"#7fc9e8\" stroke-width=\".4\" opacity=\".45\"/><ellipse cx=\"120\" cy=\"48.0\" rx=\"8.9\" ry=\"6\" fill=\"#02070e\" opacity=\".5\"/><ellipse cx=\"120\" cy=\"46.0\" rx=\"8.5\" ry=\"6.2\" fill=\"#070e18\"/><ellipse cx=\"120\" cy=\"46.0\" rx=\"8.5\" ry=\"6.2\" fill=\"none\" stroke=\"#8299af\" stroke-width=\".7\" opacity=\".55\"/><ellipse cx=\"120\" cy=\"45.4\" rx=\"6.7\" ry=\"4.9\" fill=\"url(#gb1)\"/><path d=\"M115.7 42.8 a6.7 4.9 0 0 1 5.4 -2.3\" fill=\"none\" stroke=\"#fff\" stroke-width=\"1.2\" stroke-linecap=\"round\" opacity=\".68\"/><ellipse cx=\"144\" cy=\"43.0\" rx=\"8.9\" ry=\"6\" fill=\"#02070e\" opacity=\".5\"/><ellipse cx=\"144\" cy=\"41.0\" rx=\"8.5\" ry=\"6.2\" fill=\"#070e18\"/><ellipse cx=\"144\" cy=\"41.0\" rx=\"8.5\" ry=\"6.2\" fill=\"none\" stroke=\"#8299af\" stroke-width=\".7\" opacity=\".55\"/><ellipse cx=\"144\" cy=\"40.4\" rx=\"6.7\" ry=\"4.9\" fill=\"url(#gb2)\"/><path d=\"M139.7 37.8 a6.7 4.9 0 0 1 5.4 -2.3\" fill=\"none\" stroke=\"#fff\" stroke-width=\"1.2\" stroke-linecap=\"round\" opacity=\".68\"/><ellipse cx=\"168\" cy=\"44.0\" rx=\"8.9\" ry=\"6\" fill=\"#02070e\" opacity=\".5\"/><ellipse cx=\"168\" cy=\"42.0\" rx=\"8.5\" ry=\"6.2\" fill=\"#070e18\"/><ellipse cx=\"168\" cy=\"42.0\" rx=\"8.5\" ry=\"6.2\" fill=\"none\" stroke=\"#8299af\" stroke-width=\".7\" opacity=\".55\"/><ellipse cx=\"168\" cy=\"41.4\" rx=\"6.7\" ry=\"4.9\" fill=\"url(#gb3)\"/><path d=\"M163.7 38.8 a6.7 4.9 0 0 1 5.4 -2.3\" fill=\"none\" stroke=\"#fff\" stroke-width=\"1.2\" stroke-linecap=\"round\" opacity=\".68\"/><rect x=\"115\" y=\"10\" width=\"15\" height=\"5\" rx=\"2.5\" fill=\"#0a1420\" stroke=\"#37d0f5\" stroke-width=\".7\" opacity=\".8\"/><rect x=\"135\" y=\"10\" width=\"15\" height=\"5\" rx=\"2.5\" fill=\"#0a1420\" stroke=\"#ff9424\" stroke-width=\".7\" opacity=\".8\"/><text x=\"144\" y=\"62.5\" text-anchor=\"middle\" font-family=\"Arial Black,Impact,sans-serif\" font-size=\"6.6\" font-weight=\"900\" fill=\"#ffd9a2\" opacity=\".95\">SnapHit</text><text x=\"144\" y=\"67.6\" text-anchor=\"middle\" font-family=\"system-ui,sans-serif\" font-size=\"3.5\" font-weight=\"800\" letter-spacing=\"1.1\" fill=\"#ff9424\" opacity=\".9\">STUDIOS</text></svg>" +
+      '</div>' +
+      '<div class="coin">' +
+        '<span class="slot"></span><span class="ret"></span><span class="slot"></span>' +
+      '</div>' +
+    '</div>' +
+    '<a class="visit" target="_blank" rel="noopener">PLAY IT FULL SIZE</a>';
+
+  cab.querySelector('.attract .title').textContent = g.name;
+  const visit = cab.querySelector('.visit');
+  visit.href = g.site;
+  visit.setAttribute('aria-label', 'Open ' + g.name + ' on its own site');
+
+  const screen = cab.querySelector('.screen');
+  const phone = cab.querySelector('.phone');
+  const grow = cab.querySelector('.grow');
+  const attract = cab.querySelector('.attract');
+  grow.addEventListener('click', () => zoom(phone));
+  attract.setAttribute('aria-label', 'Play ' + g.name);
+
+  // Nothing loads until it is asked for. Four live canvases on one page
+  // would cook a phone.
+  attract.addEventListener('click', () => {
+    if (screen.querySelector('iframe')) return;
+    const f = document.createElement('iframe');
+    f.src = g.src;
+    f.title = g.name;
+    f.setAttribute('scrolling', 'no');
+    f.setAttribute('allow', 'accelerometer; gyroscope; fullscreen');
+    screen.appendChild(f);
+    attract.remove();
+    phone.classList.add('live');
+    frames.push({ el: f, src: g.src, screen, phone, name: g.name });
+    watch(f);
+  });
+
+  if (rack.children.length){
+    const gap = document.createElement('div');
+    gap.className = 'gap';
+    gap.setAttribute('aria-hidden', 'true');
+    gap.innerHTML = '<span class="thread"></span>';
+    rack.appendChild(gap);
+  }
+  rack.appendChild(cab);
+}
+
+/* ---------------- unloading whatever scrolled away ---------------- */
+function watch(el){
+  if (!('IntersectionObserver' in window)) return;
+  const io = new IntersectionObserver(en => {
+    for (const e of en){
+      if (document.body.classList.contains('zoomed')) continue;
+      if (!e.isIntersecting && e.target.src){
+        e.target.removeAttribute('src');            // stop the loop dead
+        const rec = frames.find(f => f.el === e.target);
+        if (rec){
+          const again = document.createElement('button');
+          again.className = 'attract';
+          again.type = 'button';
+          again.setAttribute('aria-label', 'Play ' + rec.name);
+          again.innerHTML =
+            '<span class="title">' + rec.name + '</span>' +
+            '<span class="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3 L21 12 L6 21 Z"/></svg></span>' +
+            '<span class="hint">TAP TO PLAY</span>';
+          again.addEventListener('click', () => {
+            rec.el.src = rec.src; again.remove(); rec.phone.classList.add('live');
+          });
+          rec.phone.classList.remove('live');
+          rec.screen.appendChild(again);
+        }
+        io.unobserve(e.target);
+      }
+    }
+  }, { rootMargin: '120px' });
+  io.observe(el);
+}
+
+/* ---------------- full screen, without the Fullscreen API ---------------- */
+const shrinkBtn = document.getElementById('shrink');
+let zoomed = null;
+
+function zoom(phone){
+  zoomed = phone;
+  phone.classList.add('big');
+  document.body.classList.add('zoomed');
+  shrinkBtn.focus();
+}
+function unzoom(){
+  if (!zoomed) return;
+  zoomed.classList.remove('big');
+  document.body.classList.remove('zoomed');
+  const g = zoomed.querySelector('.grow');
+  zoomed = null;
+  if (g) g.focus();
+}
+shrinkBtn.addEventListener('click', unzoom);
+addEventListener('keydown', e => { if (e.key === 'Escape') unzoom(); });
+
+/* ---------------- the hero, and the unlock ---------------- */
+const hero = document.getElementById('heroGame');
+const down = document.getElementById('down');
+const KEY  = 'snaphit_unlocked';
+
+function unlock(){
+  if (document.body.classList.contains('unlocked')) return;
+  document.body.classList.add('unlocked');
+  try { localStorage.setItem(KEY, '1'); } catch(e){}
+}
+try { if (localStorage.getItem(KEY)) document.body.classList.add('unlocked'); } catch(e){}
+
+addEventListener('message', e => {
+  if (e.source !== hero.contentWindow) return;
+  if (e.data && e.data.snaphit === 'cleared') unlock();
+});
+
+down.addEventListener('click', () => {
+  document.getElementById('shelf').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+// Park the hero once it is off screen, and wake it on the way back.
+if ('IntersectionObserver' in window){
+  new IntersectionObserver(en => {
+    for (const e of en){
+      try { hero.contentWindow.postMessage({ snaphit: e.isIntersecting ? 'resume' : 'pause' }, '*'); }
+      catch(err){}
+    }
+  }, { threshold: 0.05 }).observe(hero);
+}
+
+// Anyone who scrolls under their own steam has found it anyway.
+addEventListener('scroll', function once(){
+  if (scrollY > innerHeight * 0.45){ unlock(); removeEventListener('scroll', once); }
+}, { passive: true });
+</script>
+</body>
+</html>
