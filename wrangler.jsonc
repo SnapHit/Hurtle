@@ -1,0 +1,21 @@
+{
+  // Static assets only. There is deliberately no "main" and no Worker script:
+  // that absence is the entire cost model, because static asset requests are
+  // free and unlimited while a Worker invocation is not.
+  "name": "hurtle",
+  "compatibility_date": "2026-07-27",
+  "assets": {
+    "directory": "./public",
+    // Pinned, not left to default. Every internal link, canonical tag and
+    // sitemap entry uses the extension-less form. If the default changed, all
+    // four pages would 404 at once.
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  // Load-bearing. Deploying without these can detach the custom domains from
+  // the Worker, which takes hurtle.site down.
+  "routes": [
+    { "pattern": "hurtle.site", "custom_domain": true },
+    { "pattern": "www.hurtle.site", "custom_domain": true }
+  ]
+}
