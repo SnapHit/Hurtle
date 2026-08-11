@@ -47,6 +47,11 @@ first: one rule per line, source path, destination path, `301`.
 profiles make storage unavailable, and an unwrapped call throws instead of
 degrading to a game that simply has no memory.
 
+**The arcade cabinet is triplicated across the three cluster pages,
+deliberately.** Factoring it into a shared stylesheet would mean an
+external request, which is forbidden above. The pages already duplicate
+their entire CSS, so this is consistent rather than a new sin. Leave it.
+
 ## The game file
 
 `public/index.html` is around 187 KB raw, about 60 KB gzipped, which is what
