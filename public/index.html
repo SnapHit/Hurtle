@@ -1,0 +1,4061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="color-scheme" content="dark">
+<title>Hurtle: an endless descent you set the dials on</title>
+<meta name="description" content="An original browser arcade game. Roll down a narrowing track, dodge blocks, clear gaps. Ten sliders set steepness, width, obstacles, jumps, speed and camera. Free, no ads, no sign-in.">
+<link rel="canonical" href="https://hurtle.site/">
+<meta name="robots" content="index,follow,max-snippet:-1">
+
+<!-- Set before anything renders, so the chrome never flashes inside an embed. -->
+<script>if(window.self!==window.top)document.documentElement.className='framed';</script>
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hurtle">
+<meta name="theme-color" content="#07050f">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Hurtle">
+<meta property="og:title" content="Hurtle">
+<meta property="og:description" content="Everyone in the world gets the same track today. Ten sliders, one ball, and a floor that will not stay still.">
+<meta property="og:url" content="https://hurtle.site/">
+<meta property="og:image" content="https://hurtle.site/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The word Hurtle above a glowing orange track running away to the horizon">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Hurtle">
+<meta name="twitter:description" content="Everyone in the world gets the same track today. Ten sliders, one ball, and a floor that will not stay still.">
+<meta name="twitter:image" content="https://hurtle.site/og.png">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"Organization","@id":"https://hurtle.site/#org","name":"Hurtle",
+  "url":"https://hurtle.site/","logo":"https://hurtle.site/icon.png",
+  "sameAs":["https://nathanhaslewood.com.au"]},
+ {"@type":"VideoGame","@id":"https://hurtle.site/#game","name":"Hurtle",
+  "url":"https://hurtle.site/","image":"https://hurtle.site/og.png",
+  "description":"An original endless descent arcade game that runs in the browser, with steepness, path width, obstacles, jumps, floor tilt, speed, camera and colour set by the player on ten sliders.",
+  "genre":"Arcade","playMode":"SinglePlayer","gamePlatform":"Web browser",
+  "applicationCategory":"Game","operatingSystem":"Any","isAccessibleForFree":true,
+  "inLanguage":"en-AU",
+  "author":{"@type":"Person","name":"Nathan Haslewood","url":"https://nathanhaslewood.com.au"},
+  "publisher":{"@id":"https://hurtle.site/#org"},
+  "offers":{"@type":"Offer","price":"0","priceCurrency":"AUD",
+            "availability":"https://schema.org/InStock"}},
+ {"@type":"WebPage","@id":"https://hurtle.site/","url":"https://hurtle.site/",
+  "name":"Hurtle: an endless descent you set the dials on",
+  "description":"An original browser arcade game. Roll down a narrowing track, dodge blocks, clear gaps. Ten sliders set steepness, width, obstacles, jumps, speed and camera.",
+  "primaryImageOfPage":"https://hurtle.site/og.png",
+  "about":{"@id":"https://hurtle.site/#game"},
+  "publisher":{"@id":"https://hurtle.site/#org"},"inLanguage":"en-AU"}
+]}
+</script>
+<style>
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;background:#07050f;overflow:hidden;
+    touch-action:none;overscroll-behavior:none;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  }
+  canvas{display:block;width:100%;height:100%;}
+
+  /* Fixed, so it never enters layout flow and the canvas is never resized: the
+     game is tuned against its own arena geometry. Hidden during play so it can
+     intercept nothing, and hidden entirely inside a frame, where a content page
+     already has its own navigation. Visible on load, which means a crawler that
+     never runs a line of JavaScript still sees every link. */
+  #chrome{position:fixed;left:0;right:0;text-align:center;z-index:5;
+    bottom:calc(9px + env(safe-area-inset-bottom));
+    padding:0 14px;pointer-events:auto;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    color:#cdf3ff;text-shadow:0 1px 5px rgba(0,0,0,.9)}
+  .framed #chrome{display:none!important}
+  #more{font-size:11px;letter-spacing:.04em;opacity:.46;line-height:2;margin-bottom:3px}
+  #more a{color:inherit;text-decoration:none;white-space:nowrap;margin:0 3px;
+    border-bottom:1px solid rgba(205,243,255,.22)}
+  #more span{opacity:.5;margin:0 2px}
+  #credit{font-size:11px;letter-spacing:.07em;opacity:.55}
+  #credit a{color:inherit;text-decoration:none;border-bottom:1px solid rgba(205,243,255,.32)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="chrome">
+  <nav id="more"><a href="/slope-2">Slope 2</a><span>&middot;</span><a href="/slope-3">Slope 3</a><span>&middot;</span><a href="/slope-online">Slope online</a><span>&middot;</span><a href="https://beakdown.fun" target="_blank" rel="noopener noreferrer">Beakdown</a></nav>
+  <div id="credit">by <a href="https://nathanhaslewood.com.au" target="_blank" rel="noopener noreferrer">Nathan Haslewood</a></div>
+</div>
+<script>
+"use strict";
+
+/* ==========================================================================
+   PLACEHOLDER NAME. Two lines to change when the real name arrives.
+   ========================================================================== */
+const GAME_NAME = "HURTLE";
+const STORE_KEY = "hurtle_best_v1";
+const DIAG_KEY  = "hurtle_diag_v1";
+/* v2. The defaults and the slider ranges have both moved, so a blob written by
+   an earlier build loads values that are near the new defaults but not equal to
+   them, and any that now fall outside a range get clamped to its edge. That is
+   what was reporting an untouched game as adjusted. Old settings are dropped
+   rather than migrated: they describe dials that no longer mean the same thing. */
+const OPT_KEY   = "hurtle_opts_v2";
+const MUTE_KEY  = "hurtle_mute_v1";
+/* keys the game shipped under before it had a name, read once so nobody loses
+   a record to a rename */
+const OLD_KEYS  = { best:"descent_best_v2", diag:"descent_diag_v1" };
+
+/* ==========================================================================
+   FEEL CONSTANTS
+
+   One block. Nothing that shapes the feel lives inline in the update loop,
+   including bare multipliers. Diff this whole object against any later
+   version to prove it has not moved.
+
+   Live tuning: open devtools and assign, e.g. K.BANK_PUSH_FRAC = 0.6.
+   Derived values recompute every frame so edits take effect immediately.
+   ========================================================================== */
+const K = {
+
+  /* --- how fast everything escalates. ---
+     One number scaling the time axis of every curve: speed, density, narrowing,
+     the corridor, lookahead and the section mix. 1.5 means the whole run happens
+     half again as fast. It exists because bots bracket difficulty badly: an
+     oracle with exact obstacle positions dies at 70s and a bot that only sees
+     what is drawn dies at 7s, and a real player sits somewhere between. Rather
+     than keep guessing at that number, turn this one. */
+  DIFFICULTY: 1.0,
+
+  /* --- the late stage. ---
+     Every primary curve asymptotes, which is correct for the ones bounded by
+     reaction time but leaves the game static for anyone who survives the first
+     minute. This is a second, slower stage that starts once the first has
+     settled and keeps climbing along the axes that reward planning rather than
+     reflexes: more blocks per row, and rows closer together. */
+  LATE_START: 40,         // s before the second stage begins
+  LATE_TAU: 70,           // s, its time constant
+  LATE_ROW_ADD: 1.0,      // extra blocks per row at full late stage
+  LATE_GAP_MUL: 0.80,     // clear-run multiplier at full late stage
+
+  /* --- fixed timestep. Physics never sees a variable dt. --- */
+  STEP: 1 / 120,
+  MAX_STEPS: 5,           // catch-up cap per frame. Slope allows sixteen physics
+                          //   steps in one frame, all consuming a single input
+                          //   sample, which is how an input survives a hitch and
+                          //   keeps steering after you let go. Five steps is 42ms;
+                          //   past that time is dropped rather than the ball
+                          //   being teleported through whatever was in the way.
+
+  /* --- forward speed. ---
+     Slope's speed rises without limit, which means it eventually outruns human
+     reaction time, which is why elite play there depends on a loading bug. The
+     wall is not speed, it is speed eating your lookahead. Here lookahead is an
+     explicit constant with a floor (LOOK_T_MIN below), so speed cannot consume
+     it. That lets the curve run far higher without ever crossing the wall, and
+     it means raw speed is a feel and score axis rather than the difficulty. The
+     difficulty escalates through demands that do not spend reaction time:
+     density, precision, and the section mix drifting harder over a run. */
+  V_START: 871,
+  V_MAX: 2980,
+  V_TAU: 38,
+
+  /* --- threading. ---
+     The report's complaint in 4.7 is that Slope scores pure distance, so
+     precision and risk earn nothing. This is the answer, and it also fixes the
+     thing that made this game too easy: a generator that guarantees a safe
+     corridor rewards sitting in it. Now the corridor keeps you alive and earns
+     you very little. Points come from passing CLOSE to a block without touching
+     it, and from chaining those passes.
+
+     I prototyped the report's brake and tuck first, since it flagged that call
+     as unresolved. Both fail here for one measurable reason: holding both keys
+     means no steering, the floor is always tilting, so there is never a moment
+     you can afford to stop steering. Threading needs no new input at all: it is
+     a property of the line you choose. */
+  NEAR_ON: true,
+  NEAR_D: 18,             // lateral gap from a block's edge that counts as threaded.
+                          //   Must be well under the corridor tolerance or ordinary
+                          //   drift earns it and the risk is not a choice.
+  NEAR_STEP: 0.20,        // multiplier added per link in the chain
+  NEAR_CAP: 12,           // most links that count toward the multiplier
+  NEAR_HOLD: 2.6,         // s a chain survives without a new link
+  NEAR_FLASH: 0.30,       // s the marker holds when one registers
+
+  /* --- scoring. ---
+     Slope scores pure distance, so precision and risk earn nothing, and flying
+     over an obstacle can score LESS than hitting the ground beside it. Here the
+     rate rises faster than linearly with speed, which is what gives the brake a
+     price and makes going fast the skill being measured. */
+  SCORE_RATE: 42,         // points per second at starting speed
+  SCORE_POW: 1.35,        // above 1 so speed is worth more than the ground it covers
+
+  /* --- lookahead. How many SECONDS of track you can see. ---
+     This is the reaction budget, and it is the reason the speed curve is safe.
+     LOOK_T_MIN is a hard floor: roughly 0.25s to notice, 0.35s to cross the
+     corridor, and the rest as planning room. Never set it below about 1.0. */
+  LOOK_T_START: 4.20,     // s of track visible at the start of a run
+  LOOK_T_MIN: 2.30,       // s, the floor. Not a reaction budget any more but a
+                          //   PREPARATION budget: long enough to see a challenge,
+                          //   read it, and decide how to take it before arriving.
+                          //   This is the thing that makes a hard game feel fair.
+  LOOK_TAU: 34,           // s, how fast the view tightens
+  NEAR_Z: 26,             // world units ahead of the camera where drawing starts
+  BAND_Z: 200,            // world units per colour band at V_START. At 108 the
+                          //   view held about 30 bands, and since each one now
+                          //   paints its own edge lips that was 90 fills before
+                          //   anything else was drawn. Sixteen larger bands cost
+                          //   half as much and still pass twice as fast at top
+                          //   speed, so the cue survives. Grows with
+                          //   the square root of speed: bands still pass faster
+                          //   as you accelerate, so the cue survives, but they
+                          //   do not end up strobing at 24 a second.
+  VIEW_CURVE: 1.55,       // sample distribution across the view. Above 1 packs
+                          //   samples near the camera, where a slice is worth
+                          //   hundreds of pixels, instead of far away where the
+                          //   whole far half is worth a few.
+  FOCAL_RUSH: 0.075,      // how much the view widens with speed. Pure feel.
+
+  /* --- lateral control. The one axis. --- */
+  LAT_ACC: 4200,          // u/s^2 while a direction is held
+  LAT_DRAG: 5.5,          // 1/s, decay when released
+  LAT_MAX: 520,           // u/s hard cap
+  AIR_CTRL: 0.45,         // lateral authority while airborne. Below 1 is what
+                          //   makes a long jump a commitment rather than a gap.
+
+  /* --- player body --- */
+  /* Halved along with the draw radius. Shrinking only the picture would leave a
+     hitbox wider than the ball and you would be clipped by things that visibly
+     missed. OBST_CLEAR drops by the same 8 units below, so the corridor you have
+     to thread is unchanged in absolute terms and the game plays as before. */
+  P_HW: 8,
+  P_HD: 6,
+  TRAIL_N: 8,
+  TRAIL_DZ: 14,           // short, because the camera sits only CAM_BACK behind
+                          //   the ball: anything longer is streaming away behind
+                          //   the lens where nobody can see it.
+  TRAIL_TAPER: 0.62,      // width of the oldest ghost, as a fraction of the ball
+  TRAIL_A: 0.34,          // opacity of the newest ghost
+
+  /* --- banked floor. The reason you cannot sit still. ---
+     Tilt is a slope: rise per unit of lateral distance. Positive lifts the
+     left edge, so the floor pushes you right. The push is expressed as a
+     fraction of your own lateral authority, so it can never exceed what you
+     are able to fight. */
+  BANK_MAX: 0.62,         // steepest tilt, about 32 degrees
+  BANK_PUSH_FRAC: 0.29,   // fraction of LAT_ACC applied at BANK_MAX. At 0.68 the
+                          //   floor was eating two thirds of your steering and
+                          //   the ball would not answer. The tilt still has to be
+                          //   managed constantly; it no longer owns the wheel.
+  BANK_BASE_AMP: 0.46,    // ambient tilt present even on plain track. This is
+                          //   the floor of demand: no stretch of track is ever
+                          //   flat enough to coast on.
+  BANK_WAVE: 505,         // z per ambient tilt cycle. Shorter means the tilt
+                          //   reverses more often, so you correct rather than
+                          //   just leaning on one direction.
+  BANK_SMOOTH: 0.020,     // per slice, how fast tilt reaches its target
+  CAM_ROLL: 0.42,         // how far the camera rolls with the tilt. 0 = level.
+
+  /* How far sideways the track steps across a hole. Slope lands you left or
+     right of where you took off, and it is the best possible use of a jump: the
+     flight is already a commitment, so make the commitment be aiming. Bounded by
+     what is actually reachable in the air at AIR_CTRL, so it is always makeable. */
+  JUMP_SHIFT: 0.45,       // fraction of reachable air displacement. 0 = no step.
+
+  /* --- jumps. Holes in the floor, cleared automatically. No jump button:
+     one axis stays one axis. The risk is the landing, not the launch. --- */
+  GRAV: 4200,             // u/s^2 vertical
+  GAP_T_MIN: 0.30,        // s of air, shortest hop
+  GAP_T_MAX: 1.70,        // s of air, longest committed flight
+  /* Six shapes rather than four, and the multipliers vary WITHIN a pattern, so a
+     run of holes reads as a phrase rather than a metronome. */
+  GAP_PATTERNS: [
+    [1.00],                     // one, medium
+    [1.00],                     // one, big: drawn from the top of the range
+    [0.52, 0.52],               // a matched pair
+    [0.42, 0.42, 0.42],         // a stutter
+    [0.38, 0.62, 0.95],         // building
+    [0.95, 0.55, 0.34]          // falling away
+  ],
+  GAP_BIG_AT: 1,          // which pattern draws its air time from the top
+  GAP_SPACE_T: 0.85,      // s of solid ground between hops in a pattern. Has to
+                          //   absorb the extra distance the descent adds to each
+                          //   arc, or a stutter lands you in the next hole.
+  GAP_MARGIN: 0.26,       // fraction of the arc left spare, so a hole is always
+                          //   clearable. Raise if landings feel like coin flips.
+  GAP_MAX_VIEW: 0.55,     // hard cap on hole length as a fraction of draw
+                          //   distance, so you can always see the far lip when
+                          //   you commit. A steep grade stretches the arc, and
+                          //   without this a plunging jump outruns the view.
+  LAND_SHAKE: 7,
+  LAND_SQUASH: 0.16,      // s of visual compression on touchdown
+  LIFTOFF_STEPS: 3,       // steps of grace after launch before a landing counts
+  AIR_OBST_H: 0.62,       // fraction of block height you must clear to pass over
+
+  /* --- track geometry --- */
+  /* Track width is a budget shared three ways: the corridor, the margin keeping
+     the safe line off the edge, and the offset that keeps the track CENTRE out
+     of the corridor. Too narrow and either the centre becomes a safe place to
+     sit or ordinary tracking error walks you off the edge. Sized so both hold. */
+  HW_START: 288,
+  HW_MIN: 215,
+  HW_TAU: 34,
+  SLICE_DZ: 18,
+  VIEW_SLICES: 92,
+  LIP_W: 11,
+
+  /* --- wireframe grid, the way Slope draws everything. ---
+     Free on the track: the projection of a plane is a projective map, so a point
+     partway across the ribbon lands partway between the two edge points already
+     computed. No extra projections, and every line goes into ONE path with ONE
+     stroke call. */
+  GRID_LONG: 6,           // lines running along the track. 0 disables.
+  GLOW_W: 4.2,            // width multiplier for the bloom pass under a line
+  GLOW_A: 0.30,           // its opacity. Two strokes per path is the whole
+                          //   lighting model: no shadowBlur, no filters, nothing
+                          //   that costs fill rate on a slow machine.
+  GRID_TOWER: true,       // lattice on the near faces of buildings
+  GRID_TOWER_V: 3,        // divisions across a tower face
+  GRID_TOWER_H: 4,        // divisions up a tower face
+  GRID_TOWER_PX: 46,      // only gridded above this on-screen height
+  GRID_W: 1.15,           // line width
+  GRID_A: 0.85,           // opacity on the track. The grid is now the only
+                          //   thing describing the deck, so it carries the read.
+  GRID_TOWER_A: 0.70,     // opacity on buildings
+  FX_A: 0.92,             // opacity of the moving scenery, which is brighter than
+                          //   the static lattice so the eye finds the movement
+
+  /* --- the safe path. Generated FIRST, everything else placed around it. --- */
+  SAFE_SLOPE_FRAC: 0.26,  // the safe line's own wiggle
+  SAFE_TURN: 185,         // z between heading changes. Shorter means it snakes.
+  SAFE_ROAM: 1100,
+  SAFE_MARGIN_MUL: 1.08,  // min gap from the safe line to either edge, as a
+  SAFE_MARGIN_PAD: 28,    //   multiple of the corridor plus a pad. It was a flat
+                          //   88, which late in a run left the safe line able to
+                          //   sit only 50u from the track centre. The centre was
+                          //   therefore inside the corridor 90% of the time, and
+                          //   holding it was a winning strategy.
+
+  /* How far the track centre sits from the safe line. This is what stops the
+     middle of the track being somewhere to hide. Targets are pushed toward the
+     limit and alternate sides rather than random-walking around zero, which is
+     what kept the centre safe. The centre may swing as fast as it likes: you
+     follow the safe line, not the centre, so its speed costs no tracking effort
+     and buys all of the visible snaking. */
+  OFF_BIAS: 0.72,         // closest a target may sit to the centre, as a fraction
+  OFF_SLOPE_FRAC: 4.60,   // how fast the centre swings
+  OFF_TURN: 430,          // z between targets. Longer means it dwells out wide
+                          //   instead of spending its life crossing the middle.
+  OFF_FLIP: 0.44,         // chance a new target is on the other side. Below 1 so
+                          //   it does not have to transit through zero every
+                          //   time, and zero is where the centre and the safe
+                          //   line coincide.
+
+  /* --- the descent itself. ---
+     GRADE is drop per unit travelled forward. A constant grade is INVISIBLE if
+     the camera rides the surface, because the relative geometry is identical to
+     flat ground. What reads as going downhill is the track's vanishing point
+     sitting below the true horizon, which only happens if the camera stays
+     gravity-level instead of pitching with the slope. CAM_PITCH_FOLLOW is how
+     much of that it gives back: 0 keeps the camera level and the drop at its
+     most dramatic, 1 pitches all the way and looks flat again. */
+  GRADE_BASE: 0.72,       // average drop per unit forward
+  GRADE_MAX: 0.80,        // steepest the ground may get. Without a cap, a DROP
+                          //   section pushed the track's vanishing point clean
+                          //   off the bottom of the screen and there was nothing
+                          //   left to look at. At 1.05 it also put the BALL off
+                          //   the bottom, which was a pre-existing bug at any
+                          //   steep grade and is what CAM_KEEP now backstops.
+  CAM_PITCH_EXTRA: 1.25,  // extra downward pitch on top of the grade-derived
+                          //   part, as a tangent. This is what rakes the
+                          //   buildings up toward you. Costs a little of the
+                          //   horizon gap, buys a lot of "I am looking down".
+  CAM_TRUE_PITCH: 1.0,    // 0 reproduces the old projection exactly, 1 is a real
+                          //   camera rotation. Pitching the camera down was being
+                          //   faked as a vertical shift of the horizon, which
+                          //   slides the picture but leaves every vertical line
+                          //   on screen dead vertical. A real rotation makes them
+                          //   converge downward, which is what looking down at
+                          //   something actually looks like, and it is the angle
+                          //   between the buildings and the ball that was missing.
+  CAM_KEEP: 0.82,         // how far down the screen the ball may sit, as a
+                          //   fraction of height. Past it the whole frame is
+                          //   shifted up. The gap between horizon and where the
+                          //   track vanishes is grade x focal, so it survives the
+                          //   shift untouched: the descent cue costs nothing.
+  GRADE_WAVE_AMP: 0.07,   // ambient steepening and easing, as a fraction. Low,
+                          //   so the slope is a slope rather than a series of
+                          //   valleys and ridges.
+  GRADE_WAVE: 2300,       // z per ambient cycle
+  GRADE_SMOOTH: 0.012,    // per slice, how fast grade reaches its target
+  GRADE_HOLD_PAD: 900,    // z either side of a hole where steepness is frozen
+  CAM_PITCH_FOLLOW: 0.42, // 0 = camera stays level, 1 = camera follows the slope.
+                          //   Raised alongside the steeper grade because at 0.16
+                          //   a 0.72 grade pushed the track's vanishing point so
+                          //   far down the screen that there was barely any track
+                          //   left to look at. Half-follow keeps it framed while
+                          //   still leaving a large, varying gap to the horizon,
+                          //   and that gap is what you read as steepness.
+
+  /* --- local undulation on top of the grade --- */
+  PITCH_AMP: 0,           // No bumps at all. They read as hilly terrain rather
+                          //   than as a slope, they made the ride jerky, and with
+                          //   correct occlusion they hid a tenth of the blocks in
+                          //   your lane. The grade is the descent; the surface
+                          //   under it should be smooth.
+  PITCH_WAVE: 1350,
+
+  /* --- the city. ---
+     Slope's void is full of receding wireframe blocks, and that is what makes
+     it read as a world rather than a ribbon in the sky. It is also what makes
+     the descent legible: a tower's base sits at the track's elevation where it
+     stands, which is below you, so as you fall toward it the whole thing rises
+     up past you. Perspective alone cannot show a descent with nothing in frame
+     to measure it against. */
+  CITY_ON: true,
+  CITY_SPACING: 140,      // z between tower clusters
+  CITY_CHANCE: 0.78,      // chance of a tower on a given side of a cluster
+  CITY_NEAR: 150,         // clearance from the track edge
+  CITY_SPREAD: 2300,      // how far out they scatter
+  CITY_W_MIN: 90,
+  CITY_W_MAX: 300,
+  CITY_H_MIN: 380,
+  CITY_H_MAX: 1750,
+  CITY_SINK: 430,         // how far below the track a base may sit
+  /* --- things that move out there. ---
+     The city already handles placement, culling, sorting, projection and
+     batching, so these cost almost nothing: rotors and craft append their
+     segments to the same path the tower lattice uses and go out in the same
+     single stroke. Everything is driven by animT, which the simulation never
+     reads, so none of it can affect a run. They stay in the tower colour and
+     well off the track, because anything moving near the ball reads as a hazard
+     and players flinch at it. */
+  ROTOR_ON: true,
+  ROTOR_MIN_H: 200,       // any tower taller than this carries one
+  ROTOR_Y: 560,           // how far up the tower it is mounted. It used to sit on
+                          //   the top, and a tall tower near the camera puts its
+                          //   top around y=-37000 on an 852px screen: the camera
+                          //   pitches down, so anything high is far out of frame.
+                          //   Mounted at a fixed height it is always in the band
+                          //   you are actually looking at.
+  ROTOR_CHANCE: 0.20,     // Rotors read as machinery on a building rather than
+                          //   as clutter, so they can be commoner than the craft,
+                          //   but at 0.80 nearly every tower had one.
+  ROTOR_BLADES: 4,
+  ROTOR_R: 0.85,          // as a fraction of tower width
+  ROTOR_RPM: 7,           // a slow turn. Machinery, not a fan.
+
+  CRAFT_ON: true,
+  CRAFT_CHANCE: 0.10,     // per tower row. At 0.45 the sky was full of them and
+                          //   they read as clutter rather than as traffic.
+  CRAFT_HI: 300,          // how far above the track they fly. 1500 put them
+                          //   clean off the top of the frame: the camera pitches
+                          //   down 45 degrees or more, so the visible field is
+                          //   mostly below the horizon. They now sit among the
+                          //   tower tops, which is where you would look for them.
+  CRAFT_HI_VAR: 560,
+  CRAFT_RANGE: 1700,      // how far they range either side before wrapping. At
+                          //   5200 they spent almost all of their sweep outside
+                          //   the field of view and you would catch one every
+                          //   half minute or so.
+  CRAFT_V: 420,
+  CRAFT_LEN: 120,
+  CRAFT_W: 54,
+
+  CRAFT_TRAIL: 5.0,       // trail length as a multiple of the body. A bare
+                          //   outline triangle reads as a glitch in the sky;
+                          //   a streak behind it reads as something moving.
+
+  CITY_VIEW: 3600,        // drawn well past the end of the track
+  CITY_MAX: 36,           // hard cap on towers drawn per frame
+  CITY_FLAT_PX: 105,      // below this on-screen height, one fill instead of two
+  CITY_EDGE_PX: 130,      // below this, no outline stroke. Strokes cost more than
+                          //   fills, and on a far tower the outline is invisible.
+  VOID_LINE: 1.00,        // how much darker the ground haze is than the sky
+  FADE_START: 0.58,       // where the track begins fading into the void
+  FADE_AMT: 0.94,         // how completely it fades by the far end
+  FADE_LIP: 0.34,         // below this fade, skip the edge lips entirely
+
+  /* --- the horizon. ---
+     A constant downhill is INVISIBLE without something at eye level to measure
+     it against. The track's vanishing point sits grade x FOCAL below the eye-
+     level horizon, but if nothing is drawn at that horizon there is no gap to
+     see, and the whole thing reads as flat hilly ground. This ridge sits at eye
+     level, is effectively infinitely far away, and never descends. The gap
+     between it and where the track vanishes IS the descent, made visible. */
+  RIDGE_AMP: 74,          // how far the peaks rise above the horizon, in pixels
+  RIDGE_BASE: 8,
+  RIDGE_SCALE: 0.0042,    // horizontal frequency
+  RIDGE_PARALLAX: 0.035,  // how much it slides as you steer. Near zero = far away.
+
+  /* --- the ball --- */
+  BALL_R: 10.5,           // draw radius
+  BALL_HALO_A: 0.34,      // the ball throws light. Two faint rings outside it,
+                          //   which is what makes it read as a source rather than
+                          //   an object with a colour.
+  BALL_RING: 0.86,        // radius of the glowing wheel, as a fraction
+  LIP_GLOW: 0.85,         // brightness of the highlight along the inner lip
+
+  /* --- sparks. ---
+     Thrown when you scrape a rail or shave a block. The near-miss that feeds the
+     threading multiplier is already detected to the frame, so this hangs off a
+     hook that was firing anyway and gives that skill something to look at. */
+  SPARK_ON: true,
+  SPARK_GRAZE: 26,        // thrown by shaving a block
+  SPARK_HIT: 64,          // thrown by actually hitting one
+  SPARK_FALL: 40,         // thrown by going over an edge
+  SPARK_LAUNCH: 20,       // kicked off the lip as you leave it
+  SPARK_LAND: 30,         // thrown up by the touchdown
+  SPARK_RAIL: 7,          // per burst while scraping an edge
+  SPARK_RAIL_D: 70,       // how close to the edge counts as scraping. Measured,
+                          //   not guessed: a bot chasing gaps sits a median 116
+                          //   units off an edge and only its worst 5% get inside
+                          //   77, so the 26 I first picked would have fired
+                          //   almost never. 70 lights up on a genuine near-fall
+                          //   and stays quiet the rest of the time.
+  SPARK_RAIL_IN: 4,       // and how far past it before you are simply falling
+  SPARK_RAIL_SPREAD: 0.8,
+  SPARK_GRAZE_SPREAD: 1.0,
+  SPARK_GRAZE_Y: 0.6,     // up the face of the block the shave lands
+  SPARK_RAIL_HZ: 26,      // bursts a second while you stay there
+  SPARK_V0: 430,          // launch speed
+  SPARK_UP: 210,
+  SPARK_BACK: 240,        // they fall behind you, because you are moving
+  SPARK_G: 1500,
+  SPARK_LIFE: 0.78,
+  SPARK_TAIL: 0.070,      // seconds of travel drawn as the streak
+  SPARK_W: 2.9,
+  SPARK_MAX: 260,         // hard cap, so a long scrape cannot flood the frame
+  SPARK_FLASH: 0.16,      // s of white bloom at the point of impact
+  SPARK_FLASH_R: 60,      // and how wide it opens, in world units
+
+  /* --- speed lines. ---
+     Screen space, radiating from where the track vanishes, kept out of the
+     middle so they never sit on top of the thing you are trying to read. */
+  SPD_ON: true,
+  SPD_V0: 900,            // u/s below which there are none. At 1500, with the
+                          //   ramp running all the way to V_MAX, a typical run
+                          //   sat at 5% opacity: drawn, and invisible.
+  SPD_TOP: 0.40,          // fraction of V_MAX at which they are at full strength
+  SPD_N: 30,
+  SPD_R0: 0.30,           // inner radius, as a fraction of the smaller dimension
+  SPD_CLEAR: 4.0,         // how much further out the DOWNWARD ones start. The
+                          //   deck runs from the vanishing point to the bottom
+                          //   of the screen, so lines heading that way were
+                          //   landing straight on the thing you are reading:
+                          //   measured at 64 to 77 per cent of them.
+  SPD_LEN: 0.22,
+  SPD_A: 0.15,            // Twice now this has crept up until it sat on the deck.
+                          //   It is faint and, more to the point, FLAT: it fades
+                          //   in near the bottom of the speed range and then never
+                          //   changes again, so there is nothing growing in the
+                          //   corner of your eye while you are concentrating.
+  SPD_SPIN: 0.045,
+  SPD_W: 1.8,             // line width, which also grows with speed
+  SPD_SKIP: 0.62,         // drop any line pointing this steeply at the deck
+
+  /* --- the two controls you get during a run. ---
+     Small, in the bottom corners, and low contrast: reachable without becoming
+     something the eye keeps going back to. Steering owns the whole screen, so
+     pointerdown checks these first and returns before engaging the drag,
+     otherwise pressing one would also throw you sideways. */
+  BTN_R: 25,              // tap radius. 23 gave a 43px target, a hair under the
+                          //   44px minimum the sliders are held to.
+  BTN_M: 16,              // margin from the screen edge
+  BTN_A: 0.34,            // how present they are while you play
+  BTN_GAP: 10,            // between the two on the right
+  SHARE_MSG: 1.8,         // s the copied confirmation stays up
+
+  /* --- tunnels --- */
+  TUNNEL_HEAD: 110,       // clear air above the camera inside a tunnel. The
+                          //   ceiling used to be a flat 210 while the camera sat
+                          //   at 209, so it was already outside the roof before
+                          //   the banked floor lifted it another 179. Height is
+                          //   now derived from the camera, which is a player
+                          //   setting, so it can never be outgrown again.
+  TUNNEL_PORTAL: 26,      // thickness of the bright ring at each mouth
+  TUNNEL_SEG: 22,         // samples along a tunnel, taken between its real ends
+
+  /* --- sections. The track is built from stretches with distinct characters
+     rather than uniform noise, because uniform noise reads as samey no matter
+     how much is in it. Multipliers are in SECTIONS below. --- */
+  SEC_T_MIN: 3.2,         // s, shortest section
+  SEC_T_MAX: 6.8,         // s, longest section
+  SEC_BLEND: 0.55,        // s of overlap where one section fades into the next
+  /* The mix drifts toward the demanding sections as a run goes on. This is the
+     escalation that never hits a ceiling: it asks for better planning rather
+     than faster hands, so it can keep going long after speed and density have
+     settled, and it cannot outrun anyone's reflexes. */
+  SEC_DRIFT_TAU: 55,      // s, how fast the mix hardens
+  SEC_DRIFT_AMT: 1.00,    // how far it goes. 0 disables the drift entirely.
+
+  /* --- practice. Straight off the Slope Plus wishlist: pick a point on the
+     difficulty curve and start there. Everything advances together, so it is
+     one number rather than a pile of overrides. Scores are not kept. --- */
+
+  /* --- named tiers. Milestones inside an endless game, borrowed from Super
+     Hexagon. Shape, not content: no currency, no unlocks, nothing to grind. --- */
+  TIER_V: [0, 1050, 1500, 1900, 2250, 2480],
+  TIER_FLASH: 1.6,        // s the name holds on screen when you cross into it
+
+  /* --- obstacles --- */
+  /* Obstacles arrive as CHALLENGES with clear track between them, not as a
+     continuous stream. Slope Plus is very hard and still feels elegant because
+     each thing you have to solve is separate, legible, and arrives with room to
+     prepare. A row every 0.22s with seven blocks in it is not a harder version
+     of that, it is a different and worse game: there is nothing to read, only
+     something to survive. A challenge is a burst of rows close together; then
+     the track clears so you can see the next one coming and decide. */
+  BEAT_ROW_T: 0.30,       // s between rows INSIDE one challenge
+  BEAT_ROWS_MAX: 3,       // most rows in one challenge, late in a run
+  BEAT_ROWS_TAU: 55,      // s over which challenges grow
+  BEAT_CLEAR_START: 3.00, // s of clear track after a challenge, at t=0
+  BEAT_CLEAR_MIN: 1.50,   // s, asymptote. Never below the lookahead, so the next
+                          //   challenge is always visible before this one ends.
+  BEAT_CLEAR_TAU: 34,
+  OBST_FIRST: 900,
+  OBST_D: 78,             // depth in z. MUST exceed V_MAX*STEP.
+  OBST_H: 42,
+  OBST_HW_MIN: 22,
+  OBST_HW_MAX: 62,
+  /* The guaranteed corridor tightens over a run. This is precision escalation:
+     it asks for finer control rather than faster hands, so it climbs without
+     ever approaching the reaction wall. The floor is set from measured tracking
+     error, not guessed. */
+  OBST_CLEAR: 70,         // half-width of the corridor at t=0
+  OBST_CLEAR_MIN: 62,     // asymptote. Tolerance is this minus P_HW: 54 units.
+                          //   Sized against the wigglier safe line, not guessed:
+                          //   at 48 the line-follower lost 4 runs in 90, at 54 it
+                          //   loses none.
+  OBST_CLEAR_TAU: 46,     // s
+  OBST_CLEAR_GAIN: 0.55,  // widens the corridor where the line is turning hard,
+                          //   since a moving line is harder to hold
+  OBST_MAX_ROW: 3,
+  OBST_EDGE_A: 0.95,      // opacity of the filament round a block. With the deck
+                          //   near-black this is the only thing that makes a
+                          //   block visible at all, so it is close to solid.
+  OBST_MID_BIAS: 0.75,    // how strongly blocks are pulled toward the track
+                          //   centre. Raised because challenges are now sparse:
+                          //   with fewer blocks in play, the ones there are have
+                          //   to sit where the lazy line goes.
+                          //   centre when they are placed. The middle should be
+                          //   the worst place to sit, not a safe default.
+  OBST_MOVE_V: 105,       // u/s lateral drift of a sliding block
+  OBST_SLIDE_ROOM: 26,    // room a block needs spare before it is allowed to slide
+  OBST_LAND_CLEAR: 0.30,  // s of clear track after a landing before rows resume
+
+  /* --- blocks that rise from the floor and drop from above. They cycle, so
+     whether one is in your way depends on when you arrive rather than only on
+     where you are. Both are telegraphed on the floor the whole time. --- */
+  OBST_CYC_MIN: 1.30,     // s per full cycle, fastest
+  OBST_CYC_MAX: 2.40,     // s per full cycle, slowest
+  OBST_RISE_SOLID: 0.34,  // fraction risen before a riser can hit you
+  OBST_DROP_H: 150,       // how high a dropper sits when it is out of the way
+  OBST_DROP_SOLID: 46,    // bottom edge below this and it can hit you
+  OBST_MARK_A: 0.28,      // opacity of the floor telegraph at rest
+  OBST_MARK_B: 0.85,      // opacity of the floor telegraph when about to fire
+
+  /* --- the save. One free hit, collected, off-path, expiring, never stacked.
+     Timings are in seconds and converted to z with the current speed, so it
+     stays a rare event as the descent accelerates. Collisions only, never
+     falls: it sits toward the edge, so the risk of fetching it is exactly the
+     death it will not cover. --- */
+  SAVE_ON: true,
+  SAVE_T_GAP: 6.0,        // s after one resolves before the next appears
+  SAVE_T_LANE: 1.1,       // s of clear run-up reserved ahead of it. Also "how
+                          //   long it survives": it is gone once passed.
+  SAVE_T_MERGE: 0.3,      // s of clear track past it
+  SAVE_LANE_PAD: 16,
+  SAVE_T_FIRST: 1.2,
+  SAVE_OFFPATH: 118,      // lateral distance from the safe line. The cost.
+  SAVE_R: 20,
+  SAVE_GRAB_H: 40,        // how high off the floor you can still grab one
+  SAVE_SPIN: 3.2,
+  SAVE_FLASH: 0.35,
+  SAVE_BURST: 0.45,
+  SAVE_FREEZE: 0.14,
+  SAVE_IFRAMES: 0.9,
+
+  /* --- death legibility. Three kinds, three visuals, no words. --- */
+  DEATH_FREEZE: 0.45,
+  SHAKE_HIT: 14,          // collisions shake
+  SHAKE_FALL: 0,          // falls do not. That difference is half the tell.
+  FALL_G: 2600,
+
+  /* --- camera and projection --- */
+  CAM_BACK: 178,
+  CAM_BACK_RUSH: 0.22,    // how much further back the camera sits at top speed
+  CAM_H: 209,             // Raised to see further over crests. CAM_KEEP stops it
+                          //   pushing the ball off the bottom of the screen.
+  FOCAL: 340,
+  CAM_LAG: 9.0,
+  CAM_RISE: 0.55,         // how much the camera follows you upward in the air
+  CAM_VSMOOTH: 7.0,       // 1/s damping on the airborne rise only. The
+                          //   surface under the camera is banked, and the track
+                          //   centre swings sideways fast, so that offset was
+                          //   jumping up to 19 world units in a single frame and
+                          //   throwing the ball 17px up the screen. The floor is
+                          //   flat now; this was the bumpiness.
+  HORIZON: 0.34,
+  /* The splash now matches the share card: mixed case, tight tracking, cream,
+     rather than the wide-tracked capitals it used to be. Somebody arriving from
+     a shared link should recognise the thing they clicked. */
+  TITLE_TRACK: -0.012,   // tracking as a fraction of size. Negative: the card
+                         //   sets its wordmark tight, and caps-with-air was the
+                         //   main thing making the two look unrelated.
+  TITLE_GLOW: 0.16,      // opacity of each bloom repeat behind the wordmark
+  TITLE_SCRIM: 0.58,     // how far the arena is knocked back behind the splash
+  TITLE_HZ: 0.335,       // where the warm horizon sits, as a fraction of height
+  TITLE_BLOOM: 0.92,     // radius of the amber bloom, as a fraction of width
+  TITLE_BLOOM_A: 0.50,   // and how hot its centre burns
+  SET_ROW_MAX: 52,       // touch target per slider row. Rows were 32px, under
+                         //   every published minimum, which is why they were hard
+                         //   to catch on a phone.
+  SET_KNOB: 11,          // knob radius, likewise
+  SET_ARENA_MIN: 0.20,   // least of the screen kept clear for the arena. On a
+                         //   short phone carrying ten sliders something has to
+                         //   give, and it is this rather than the touch target:
+                         //   a control you cannot hit is worse than a small view.
+  SET_SCRIM: 0.34,       // how dark it goes under the controls. Low, because the
+                         //   whole point is watching the arena change while you
+                         //   move things; the labels get their own backing so
+                         //   they stay readable without dimming the picture.
+  SET_LABEL_BG: 0.58,    // that backing
+  SET_FOOT: 54,          // clear space kept below the buttons, px before scaling
+  PREVIEW_Z: 1500,       // how far into the preview track the camera sits, so
+                         //   there is ground, edges and a block in shot
+  DPR_CAP: 2.0,           // Was 1.5, which on a 3x phone screen threw away most
+                          //   of the panel and left every edge soft. Your device
+                          //   is running 16.7ms of a 16.8ms budget with detail at
+                          //   full, so the headroom is there; auto-quality still
+                          //   backs the geometry off on anything that struggles.
+
+  /* --- touch. ---
+     Relative thumb drag, not tap-left and tap-right. Tapping screen halves is a
+     binary input driving a momentum control, and the teardown names it as why
+     the official mobile Slope is rated one star by the same people who rate the
+     browser build 8.2. A drag gives the analogue value the control model
+     actually wants: a small movement steers gently, a large one commits. The
+     origin follows your thumb at the extremes so you can never run out of
+     travel mid-corner. */
+  TAP_BIAS: 0.85,         // deflection the instant you touch down, before you
+                          //   have moved at all. Without this the drag needs
+                          //   travel before the ball responds, which is what
+                          //   made it unplayable: an instant input replaced by
+                          //   one with a dead zone the width of a thumb.
+  DRAG_FRAC: 0.12,        // further travel to full deflection, as a fraction of
+                          //   the smaller screen dimension
+  DRAG_MIN_PX: 40,
+
+  /* --- automatic quality. ---
+     The city is what makes the descent legible, so it is the last thing to cut,
+     but it is also the bulk of the fill cost and the target machine is a slow
+     Chromebook. Rather than pick a number blind, watch the frame time and step
+     the detail down until it fits, then step back up if it recovers. Physics is
+     never touched, so the game plays identically at every level. */
+  AUTO_QUALITY: true,
+  AUTO_MS_HI: 20.5,       // slower than this and detail steps down
+  AUTO_MS_LO: 13.0,       // faster than this and it steps back up
+  AUTO_HOLD: 90,          // frames between changes, so it cannot oscillate
+  QUAL_MIN: 0.45,
+  QUAL_STEP: 0.18,
+};
+
+/* Section characters. Every stretch of track is one of these. Each raises one
+   demand and lowers another, so two demands are never stacked blind.
+     safeMul  how hard the safe line swings
+     densMul  obstacle density
+     hwMul    track width
+     bank     sustained tilt as a fraction of BANK_MAX, sign picked per section
+     grade    steepness, as a multiple of GRADE_BASE
+     move     chance a block slides sideways
+     rise     chance a block rises from the floor or drops from above
+     gap      places jumps
+     tun      encloses the track
+     hard     how much planning it demands, 0..1. Drives the late-run drift.
+     w        base selection weight                                              */
+const SECTIONS = {
+  RUN:     { safeMul:1.00, densMul:1.00, hwMul:1.00, bank:0.34, grade:1.00, move:0.30, rise:0.26, gap:false, tun:false, hard:0.30, w:18  },
+  SWEEP:   { safeMul:0.70, densMul:0.60, hwMul:1.00, bank:1.00, grade:0.80, move:0.14, rise:0.12, gap:false, tun:false, hard:0.35, w:16  },
+  CHICANE: { safeMul:2.30, densMul:0.55, hwMul:1.15, bank:0.50, grade:0.75, move:0.10, rise:0.10, gap:false, tun:false, hard:0.60, w:14  },
+  SLALOM:  { safeMul:0.45, densMul:1.90, hwMul:1.00, bank:0.38, grade:1.00, move:0.46, rise:0.36, gap:false, tun:false, hard:0.85, w:14  },
+  PINCH:   { safeMul:0.65, densMul:0.45, hwMul:0.58, bank:0.52, grade:1.30, move:0.08, rise:0.14, gap:false, tun:false, hard:0.80, w: 9  },
+  JUMP:    { safeMul:0.60, densMul:0.62, hwMul:1.00, bank:0.40, grade:1.15, move:0.12, rise:0.10, gap:true,  tun:false, hard:0.50, w:30  },
+  TUNNEL:  { safeMul:0.55, densMul:0.95, hwMul:0.74, bank:0.44, grade:1.55, move:0.28, rise:0.46, gap:false, tun:true, hard:0.70,  w:12  },
+  DROP:    { safeMul:0.40, densMul:0.58, hwMul:1.05, bank:0.56, grade:1.45, move:0.05, rise:0.05, gap:false, tun:false, hard:0.45, w:10  }
+};
+const SEC_KEYS = Object.keys(SECTIONS);
+
+const D = {};
+function lookNow(){
+  return K.LOOK_T_MIN + (K.LOOK_T_START - K.LOOK_T_MIN) * Math.exp(-tE() / K.LOOK_TAU);
+}
+function derive(){
+  const sp = run ? speedNow() : K.V_START;
+  D.SAFE_SLOPE  = K.SAFE_SLOPE_FRAC * K.LAT_MAX / K.V_MAX;
+  D.OFF_SLOPE   = K.OFF_SLOPE_FRAC  * K.LAT_MAX / K.V_MAX;
+  /* the view is a fixed number of SECONDS, so it stretches in world units as
+     you accelerate instead of the reaction budget shrinking */
+  D.VIEW_Z      = (run ? lookNow() : K.LOOK_T_START) * sp;
+  D.GEN_AHEAD   = D.VIEW_Z + 700;
+  D.SLICE_AHEAD = D.GEN_AHEAD + K.CITY_VIEW + 400;
+  D.FOC         = K.FOCAL / (1 + K.FOCAL_RUSH * (sp / K.V_START - 1));
+  D.CAM_BACK    = K.CAM_BACK * (1 + K.CAM_BACK_RUSH * (sp / K.V_START - 1));
+  D.TUNNEL_H    = K.CAM_H + K.BANK_MAX * K.HW_START + K.TUNNEL_HEAD;
+  if (!D.DRAG_PX) D.DRAG_PX = K.DRAG_MIN_PX;
+  D.BAND_Z      = K.BAND_Z * Math.sqrt(sp / K.V_START);
+  D.SLICES      = Math.max(40, Math.round(K.VIEW_SLICES * qual));
+  D.CITY_MAX    = Math.max(8,  Math.round(K.CITY_MAX   * qual));
+  D.STEP_TRAVEL = K.V_MAX * K.STEP;
+  D.BANK_PUSH   = K.BANK_PUSH_FRAC * K.LAT_ACC / K.BANK_MAX;   // accel per unit tilt
+}
+
+/* ==========================================================================
+   PALETTE
+   Pale track, dark blocks, deep indigo void. Deliberately not the genre's
+   usual dark track with bright obstacles, and nothing near Slope's black and
+   neon green. Also functional: dark blocks on a bright surface is the highest
+   contrast arrangement available, which is what matters at speed.
+   ========================================================================== */
+/* Two palettes. High contrast is on the Slope Plus wishlist and it costs one
+   toggle. Neither relies on hue alone for the signals that matter: a collision
+   shakes the screen and a fall does not, the killing block pulses, the pickup
+   is a diamond inside a ring. Colour confirms, it is never the only channel. */
+/* High contrast, always. It was a toggle; it is now the only palette, because a
+   contrast option that ships off by default protects nobody who does not know
+   to go looking for it, and nothing here reads worse for being legible. Signals
+   never rely on hue in any case: a collision shakes the screen and a fall does
+   not, the killing block pulses, the pickup is a diamond inside a ring. */
+/* TRON, and now any colour the player likes.
+   The reference is unambiguous: surfaces are near-black and everything is
+   defined by glowing edge lines, with two opposing glows against a tinted dark.
+
+   Two hue sliders drive the whole scheme, but the hues are the ONLY thing that
+   moves. Every colour is solved for a target relative luminance rather than
+   given a lightness, because lightness is not brightness: a yellow and a blue at
+   the same HSL lightness differ by a factor of four in what the eye receives. So
+   the contrast against the deck, and the brightness ladder separating the four
+   kinds of block, hold identically at every setting. Fourteen bisection steps per
+   colour, run once when a slider moves, never per frame. */
+function hsl2rgb(h, s, l){
+  h = ((h % 360) + 360) % 360; s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => { const k = (n + h / 30) % 12;
+                   return l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1))); };
+  return [f(0), f(8), f(4)];
+}
+function relLum(rgb){
+  const g = x => x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  return 0.2126*g(rgb[0]) + 0.7152*g(rgb[1]) + 0.0722*g(rgb[2]);
+}
+function hex(rgb){
+  const t = x => { const v = Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16);
+                   return v.length < 2 ? '0' + v : v; };
+  return '#' + t(rgb[0]) + t(rgb[1]) + t(rgb[2]);
+}
+/* the colour of this hue and saturation that lands on a given luminance */
+function tone(h, s, targetLum){
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 14; i++){
+    const mid = (lo + hi) * 0.5;
+    if (relLum(hsl2rgb(h, s, mid * 100)) < targetLum) lo = mid; else hi = mid;
+  }
+  return hex(hsl2rgb(h, s, (lo + hi) * 50));
+}
+
+let C = {};
+function paint(){
+  const n = optOf('neon').v, a = optOf('accent').v;
+  C.skyTop = '#000000';  C.void = '#000000';
+  C.skyMid  = tone(n, 70, 0.004);
+  C.skyLow  = tone(n, 72, 0.016);
+  C.skyHaze = tone(n, 74, 0.045);
+  C.horizon = tone(n, 67, 0.085);
+
+  C.bandA   = tone(n, 42, 0.0115);   /* the deck. 1.23:1 against the void. */
+  C.bandB   = tone(n, 52, 0.0065);
+  C.grid    = tone(n, 82, 0.400);
+  C.gridGlow= tone(n, 82, 0.075);
+  C.lip     = tone(a,100, 0.380);
+  C.lipEdge = tone(a, 90, 0.680);
+
+  C.obstTop = tone(n, 40, 0.014);
+  C.obstFace= tone(n, 60, 0.003);
+  /* the ladder: sliding < static < rising < dropping, by luminance, always */
+  C.obstEdge= tone(a,      100, 0.380);
+  C.obstMove= tone(a + 300, 85, 0.230);   /* lifted: at 0.170 it fell to 3.5:1 */
+  C.obstRise= tone(a + 18, 100, 0.580);
+  C.obstDrop= tone(n + 26, 100, 0.780);
+
+  C.tunnel    = tone(n, 65, 0.005);
+  C.tunnelWall= tone(n, 70, 0.001);
+  C.portal    = tone(n,100, 0.560);
+  C.cityA     = tone(n, 70, 0.004);
+  C.cityB     = tone(n, 70, 0.014);
+  C.cityEdge  = tone(n, 82, 0.105);
+  C.gridTower = tone(n, 79, 0.260);
+
+  C.playerBody = '#01070a';
+  C.playerRim  = tone(n, 82, 0.035);
+  C.player     = tone(n,100, 0.480);
+  C.playerLit  = tone(n,100, 0.790);
+  C.playerCore = '#ffffff';
+  C.save       = tone(a + 12, 100, 0.520);
+  C.die        = '#ff2a2a';          /* danger stays red whatever the theme */
+  C.hud        = tone(n, 100, 0.860);
+  /* sampled from the share card, and fixed rather than themed, because it is the
+     wordmark and the wordmark should be the same object everywhere */
+  /* The splash keeps its own palette. Everything else follows the two hue
+     sliders, and the title inheriting them meant the front door changed colour
+     with whatever the player last set: cold blue and magenta on this build. The
+     share card is warm, and the first thing anybody sees should look like the
+     thing they clicked. These three are sampled from it. */
+  /* Four accents for the moving scenery, derived from the same two hues as
+     everything else so the variety follows the sliders rather than fighting
+     them: the neon, a neon shifted round a little, the accent, and an accent
+     shifted the other way. */
+  C.fx = [ tone(n,      100, 0.470),
+           tone(n + 34,  96, 0.415),
+           tone(a,      100, 0.450),
+           tone(a - 26,  96, 0.400) ];
+  C.cream      = '#f4f1ea';
+  C.warm       = '#ff8a1e';
+  C.warmLo     = '#f7cc9c';
+  skyGrad = null; titleBloomKey = '';
+}
+
+/* ==========================================================================
+   SEEDED RNG. Every run reproducible. Append ?seed=123 to replay one.
+   ========================================================================== */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+let urlSeed = null;
+try {
+  const m = /[?&]seed=(\d+)/.exec(location.search); if (m) urlSeed = parseInt(m[1],10)|0;
+} catch(e){}
+/* One track a day for everyone, derived from the UTC date. No server, no
+   account, no netcode: the seed IS the shared object. */
+/* Days since the epoch, hashed. Everyone on Earth gets the same integer on the
+   same UTC day, and because the generator is endless from any seed there is no
+   content to run out of: one new track a day, for about eleven million years
+   before the 32-bit space wraps. No server, no account, nothing to maintain. */
+function dailySeed(){ return (Math.floor(Date.now() / 86400000) * 2654435761) | 0; }
+function dailyNumber(){ return Math.floor(Date.now() / 86400000) - 20000; }
+/* How long the current track has left. The seed is days since the epoch, and the
+   epoch is anchored at midnight UTC, so the changeover is whatever is left of
+   the current UTC day. Same instant for everyone, which is the promise the line
+   above the buttons makes. */
+function dailyLeftMs(){ const d = 86400000; return d - (Date.now() % d); }
+function dailyCountdown(){
+  const ms  = dailyLeftMs();
+  const h   = Math.floor(ms / 3600000);
+  const m   = Math.floor(ms / 60000) % 60;
+  const sec = Math.floor(ms / 1000) % 60;
+  /* A clock, so the digits sit where the eye expects them: hours unpadded, then
+     minutes and seconds always two wide. Without the padding the whole string
+     would jump about a pixel every second as 9 became 10. */
+  const pad = n => (n < 10 ? '0' : '') + n;
+  return 'new track in ' + h + ':' + pad(m) + ':' + pad(sec);
+}
+try { if (/[?&]daily/.test(location.search)) dailyMode = true; } catch(e){}
+/* ?d=1.5 turns every escalation curve up by half again, without touching logic */
+try {
+  const m = /[?&]d=([\d.]+)/.exec(location.search);
+  if (m){ const v = parseFloat(m[1]); if (v > 0.2 && v < 6) K.DIFFICULTY = v; }
+} catch(e){}
+
+const clamp = (v,a,b) => v < a ? a : (v > b ? b : v);
+
+let cv, ctx, W=0, H=0, DPR=1, HALFW=0, horizonY=0, skyGrad=null;
+/* With the other render caches, not next to drawTitle where it belongs by
+   subject: resize() runs during boot, and a let declared further down the file
+   is still in its temporal dead zone when it does. */
+let titleBloom = null, titleBloomKey = '';
+let state = 'title';
+let P, run, gen, obstacles, gaps, tunnels, towers, craft, save, shards, pts = [];
+/* Sparks are render dressing and use Math.random, NOT run.rnd. The seeded
+   stream generates the track, so drawing from it here would change the world
+   depending on how close you happened to fly past something. */
+const sparks = [];
+let animT = 0;
+let hY = 0;
+let camX = 0, camZ = 0, camY = 0, roll = 0, rollC = 1, rollS = 0;
+let rX = 0, rZ = 0, rH = 0;   // render positions, interpolated between ticks
+let pitchC = 1, pitchS = 0, projBase = 0, camRise = 0, lastFt = 1/60;
+let best = 0, bestOK = true;
+let dailyMode = true, setOpen = false, setDrag = -1, setFrom = 'title';
+let paused = false;
+
+/* Inside a content page the game is one element among many, so it starts silent
+   and the player turns it on. On its own page it plays. Muting is remembered
+   either way, so a deliberate choice survives. */
+const FRAMED = (function(){ try { return window.self !== window.top; } catch(e){ return true; } })();
+const chromeEl = document.getElementById('chrome');
+function showChrome(on){ if (chromeEl) chromeEl.style.display = on ? 'block' : 'none'; }
+
+/* ==========================================================================
+   PLAYER SETTINGS
+
+   The whole game is already one block of named constants, so exposing the ones
+   that decide how it feels costs almost nothing and replaces a slow loop: play,
+   describe a feeling, guess at a number, play again. Ranges are clamped to what
+   stays survivable, because the corridor obstacles are kept out of is sized
+   against measured tracking error, and a narrow path under a hard tilt stops
+   being passable. A slider that can produce an impossible game reads as a broken
+   game, so the ends of every range are places the guarantees still hold.
+   ========================================================================== */
+/* Ranges are anchored on the settings that felt right rather than on the old
+   shipped numbers, so the middle of each slider is now a place worth being and
+   there is travel either side of it. Camera angle in particular was pinned at
+   its old maximum, which meant the control had run out exactly where it started
+   being useful. */
+const OPT = [
+  { k:'grade', gen:true,  label:'Steepness',     min:0.35, max:0.80, v:0 },
+  /* 0.80 is GRADE_MAX. Above it the clamp bites and the slider would have dead
+     travel at the top, which reads as a broken control. */
+  { k:'width', gen:true,  label:'Path width',    min:0.72, max:1.55, v:0 },
+  { k:'obst', gen:true,   label:'Obstacles',     min:0.45, max:1.90, v:0 },
+  { k:'jump', gen:true,   label:'Jumps',         min:0.00, max:2.60, v:0 },
+  { k:'tilt', gen:true,   label:'Floor tilt',    min:0.00, max:0.60, v:0 },
+  { k:'speed', gen:true,  label:'Speed',         min:0.62, max:1.09, v:0 },
+  /* the ceiling is measured, not chosen: past about 3250 u/s absolute, top speed
+     and the steepest ground together produce jumps that cannot be cleared */
+  { k:'pitch',  label:'Camera angle',  min:0.35, max:2.20, v:0 },
+  { k:'height', label:'Camera height', min:100,  max:330,  v:0 },
+  { k:'neon',   cos:true, label:'Neon',          min:0,    max:359,  v:0 },
+  { k:'accent', cos:true, label:'Accent',        min:0,    max:359,  v:0 }
+];
+const OPT_BASE = {};
+function optOf(k){ for (let i=0;i<OPT.length;i++) if (OPT[i].k===k) return OPT[i]; return null; }
+/* Captured ONCE, from the shipped constants. Re-reading K here would fold the
+   player's own changes into the baseline, so "reset" would restore whatever
+   they last set rather than the defaults. */
+let optBaseDone = false;
+function captureOptBase(){
+  if (optBaseDone) return;
+  optBaseDone = true;
+  OPT_BASE.grade  = K.GRADE_BASE;
+  OPT_BASE.hwS    = K.HW_START;      OPT_BASE.hwM = K.HW_MIN;
+  OPT_BASE.clrS   = K.BEAT_CLEAR_START; OPT_BASE.clrM = K.BEAT_CLEAR_MIN;
+  OPT_BASE.jumpW  = SECTIONS.JUMP.w;
+  OPT_BASE.tilt   = K.BANK_PUSH_FRAC;
+  OPT_BASE.vS     = K.V_START;       OPT_BASE.vM = K.V_MAX;
+  OPT_BASE.pitch  = K.CAM_PITCH_EXTRA;
+  OPT_BASE.camH   = K.CAM_H;
+  OPT_BASE.neon   = 191;
+  OPT_BASE.accent = 30;
+}
+function defaultOpts(){
+  optOf('grade').v  = OPT_BASE.grade;
+  optOf('width').v  = 1;
+  optOf('obst').v   = 1;
+  optOf('jump').v   = 1;
+  optOf('tilt').v   = OPT_BASE.tilt;
+  optOf('speed').v  = 1;
+  optOf('pitch').v  = OPT_BASE.pitch;
+  optOf('height').v = OPT_BASE.camH;
+  optOf('neon').v   = OPT_BASE.neon;
+  optOf('accent').v = OPT_BASE.accent;
+}
+function applyOpts(){
+  K.GRADE_BASE      = optOf('grade').v;
+  const w           = optOf('width').v;
+  K.HW_START        = OPT_BASE.hwS * w;
+  K.HW_MIN          = OPT_BASE.hwM * w;
+  const o           = optOf('obst').v;
+  K.BEAT_CLEAR_START= OPT_BASE.clrS / o;
+  K.BEAT_CLEAR_MIN  = OPT_BASE.clrM / o;
+  SECTIONS.JUMP.w   = OPT_BASE.jumpW * optOf('jump').v;
+  K.BANK_PUSH_FRAC  = optOf('tilt').v;
+  const sp          = optOf('speed').v;
+  K.V_START         = OPT_BASE.vS * sp;
+  K.V_MAX           = OPT_BASE.vM * sp;
+  K.CAM_PITCH_EXTRA = optOf('pitch').v;
+  K.CAM_H           = optOf('height').v;
+
+  /* The floor of survivability, derived rather than guessed. The safe line must
+     sit safeMarginNow() clear of the edge, and the track centre must be able to
+     sit further out than the corridor is wide, or the middle becomes a safe
+     place to park. That second term is (corridor tolerance / OFF_BIAS), not the
+     corridor itself: getting it wrong made this clamp bind even at defaults, so
+     "reset" quietly returned a different game than the one that ships. */
+  const need = (K.OBST_CLEAR * K.SAFE_MARGIN_MUL + K.SAFE_MARGIN_PAD +
+                (K.OBST_CLEAR - K.P_HW) / K.OFF_BIAS) * 1.02;
+  if (K.HW_MIN < need){ const f = need / K.HW_MIN; K.HW_MIN *= f; K.HW_START *= f; }
+  if (K.HW_START < K.HW_MIN * 1.15) K.HW_START = K.HW_MIN * 1.15;
+  paint();
+  derive();
+}
+function saveOpts(){
+  try {
+    const o = {}; for (const e of OPT) o[e.k] = e.v;
+    localStorage.setItem(OPT_KEY, JSON.stringify(o));
+  } catch(e){}
+}
+function loadOpts(){
+  try {
+    const o = JSON.parse(localStorage.getItem(OPT_KEY) || 'null');
+    if (o) for (const e of OPT){
+      const v = o[e.k];
+      /* a value outside the range is from a build where the range was different,
+         so take the default rather than pinning it to an edge it never meant */
+      if (typeof v === 'number' && v >= e.min && v <= e.max) e.v = v;
+    }
+  } catch(e){}
+  applyOpts();
+}
+function resetOpts(){ defaultOpts(); applyOpts(); saveOpts(); }
+/* Whether the run was played on what everybody else gets. A daily score is only
+   comparable if the dials were where they ship, and anyone can widen the path
+   and slow it down, so the share card has to say which it was. */
+function optsAreDefault(){
+  const cur = OPT.map(e => e.v);
+  defaultOpts();
+  const def = OPT.map(e => e.v);
+  for (let i = 0; i < OPT.length; i++) OPT[i].v = cur[i];
+  /* Colour is skipped. Picking a different hue cannot make a run easier, and
+     counting it meant anyone who had ever touched the theme was reported as
+     having adjusted the game, which is both wrong and the sort of thing that
+     makes a leaderboard note untrustworthy. */
+  for (let i = 0; i < def.length; i++){
+    if (OPT[i].cos) continue;
+    /* half a per cent of the slider's travel. A dial is continuous, so somebody
+       who nudged one and dragged it back would otherwise be marked adjusted for
+       ever over a difference far too small to matter. */
+    const tol = (OPT[i].max - OPT[i].min) * 0.005;
+    if (Math.abs(def[i] - cur[i]) > tol) return false;
+  }
+  return true;
+}
+function runLabel(){
+  return (run && run.daily) ? 'Daily track #' + dailyNumber() : 'Random track';
+}
+function shareText(){
+  return GAME_NAME + ': ' + score() + '\n'
+       + runLabel() + ', ' + (optsAreDefault() ? 'settings unchanged' : 'settings adjusted')
+       + '\nhurtle.site';
+}
+let shareMsg = 0;
+function doShare(){
+  const txt = shareText();
+  /* Three ways down, because the good one needs a secure context and the file a
+     friend opens off their downloads folder is not one. */
+  try { if (navigator.share){ navigator.share({ text: txt }); shareMsg = K.SHARE_MSG; return; } } catch(e){}
+  try { if (navigator.clipboard){ navigator.clipboard.writeText(txt); shareMsg = K.SHARE_MSG; return; } } catch(e){}
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    shareMsg = K.SHARE_MSG;
+  } catch(e){}
+}
+const TIER_NAME = ['DRIFT','RUSH','PLUNGE','FREEFALL','TERMINAL','ESCAPE VELOCITY'];
+let diag = {};   // running tally of what kills you, for the death screen
+const UI = { play:null, random:null, sound:null, settings:null, setReset:null, setDone:null,
+             pause:null, skip:null, mute:null, menu:null, share:null };
+
+const perf = { show:false, hist:new Array(90).fill(16.7), i:0, n:0, steps:0, avg:0, worst:0 };
+let qual = 1, qualHold = 0;
+
+/* ---------- escalation curves ---------- */
+/* The curve is what the run has earned. speedNow() is what you are actually
+   doing, which is the curve scaled by the brake. Everything downstream reads
+   speedNow(), so row spacing, the pickup clock and the view stay honest while
+   you are slowed. */
+/* the scaled clock every escalation curve runs on */
+function tE(){ return run.t * K.DIFFICULTY; }
+/* the second stage, 0 until LATE_START then rising without ever settling flat */
+function lateN(){ return 1 - Math.exp(-Math.max(0, tE() - K.LATE_START) / K.LATE_TAU); }
+function curveV(){ return K.V_MAX - (K.V_MAX - K.V_START) * Math.exp(-tE() / K.V_TAU); }
+function speedNow(){ return curveV(); }
+function scoreMul(){ return Math.pow(speedNow() / K.V_START, K.SCORE_POW); }
+function chainMul(){ return 1 + Math.min(run.chain, K.NEAR_CAP) * K.NEAR_STEP; }
+function tierOf(v){
+  let i = 0;
+  for (let k = 0; k < K.TIER_V.length; k++) if (v >= K.TIER_V[k]) i = k;
+  return i;
+}
+function hwNow(){    return K.HW_MIN + (K.HW_START - K.HW_MIN) * Math.exp(-tE() / K.HW_TAU); }
+/* the clear run after a challenge, in world units */
+function beatClearZ(){
+  const t = K.BEAT_CLEAR_MIN +
+            (K.BEAT_CLEAR_START - K.BEAT_CLEAR_MIN) * Math.exp(-tE() / K.BEAT_CLEAR_TAU);
+  return t * (1 - (1 - K.LATE_GAP_MUL) * lateN()) * speedNow();
+}
+/* how many rows make up one challenge */
+function beatRows(){
+  return 1 + Math.floor(run.rnd() *
+         (1 + (K.BEAT_ROWS_MAX - 1) * (1 - Math.exp(-tE() / K.BEAT_ROWS_TAU))));
+}
+function clearNow(){
+  return K.OBST_CLEAR_MIN + (K.OBST_CLEAR - K.OBST_CLEAR_MIN) * Math.exp(-tE() / K.OBST_CLEAR_TAU);
+}
+function safeMarginNow(){ return clearNow() * K.SAFE_MARGIN_MUL + K.SAFE_MARGIN_PAD; }
+/* how far you can actually move sideways during a flight of tAir seconds */
+function airReach(tAir){
+  const a  = K.AIR_CTRL * K.LAT_ACC;
+  const tc = K.LAT_MAX / a;
+  if (tAir <= tc) return 0.5 * a * tAir * tAir;
+  return 0.5 * K.LAT_MAX * tc + K.LAT_MAX * (tAir - tc);
+}
+function pitch(z){ return K.PITCH_AMP * Math.sin(z * 2 * Math.PI / K.PITCH_WAVE); }
+function score(){  return Math.floor(run.score); }
+
+/* ==========================================================================
+   SECTIONS
+   Generated ahead in z, blended at the seams so nothing snaps on. Everything
+   downstream asks secAt(z) for its multipliers.
+   ========================================================================== */
+function secWeight(k){
+  const d = SECTIONS[k];
+  const drift = K.SEC_DRIFT_AMT * (1 - Math.exp(-tE() / K.SEC_DRIFT_TAU));
+  return d.w * (1 + (d.hard - 0.5) * 2 * drift);
+}
+function pickSection(prev){
+  let tot = 0;
+  for (let i = 0; i < SEC_KEYS.length; i++) tot += secWeight(SEC_KEYS[i]);
+  for (let tries = 0; tries < 8; tries++){
+    let r = run.rnd() * tot;
+    for (let i = 0; i < SEC_KEYS.length; i++){
+      r -= secWeight(SEC_KEYS[i]);
+      if (r <= 0){ if (SEC_KEYS[i] !== prev) return SEC_KEYS[i]; break; }
+    }
+  }
+  return 'RUN';
+}
+
+function ensureSections(zMax){
+  /* Runs one whole section past what was asked for. secAt() blends into the
+     NEXT section, so if the next one does not exist yet the blend is skipped
+     and the same z answers differently later. Anything placed during that
+     window is placed against a value that then changes underneath it. */
+  const target = zMax + K.SEC_T_MAX * speedNow();
+  while (gen.secEnd < target){
+    const v    = speedNow();
+    const prev = gen.sections.length ? gen.sections[gen.sections.length-1].type : null;
+    const type = pickSection(prev);
+    const len  = (K.SEC_T_MIN + run.rnd() * (K.SEC_T_MAX - K.SEC_T_MIN)) * v;
+    const sec  = { type:type, z0:gen.secEnd, z1:gen.secEnd + len,
+                   sign: run.rnd() < 0.5 ? -1 : 1, blend: K.SEC_BLEND * v };
+    gen.sections.push(sec);
+    if (SECTIONS[type].gap) planGap(sec, v);
+    if (SECTIONS[type].tun) planTunnel(sec);
+    gen.secEnd = sec.z1;
+  }
+}
+
+const SEC_TMP = { safeMul:1, densMul:1, hwMul:1, bank:0, grade:1, move:0.25, rise:0.2, type:'RUN' };
+function secAt(z){
+  const list = gen.sections;
+  let a = null, ai = -1;
+  for (let i = list.length - 1; i >= 0; i--){
+    if (z >= list[i].z0 && z < list[i].z1){ a = list[i]; ai = i; break; }
+  }
+  if (!a && list.length){ ai = list.length - 1; a = list[ai]; }
+  if (!a){
+    SEC_TMP.type='RUN'; SEC_TMP.safeMul=1; SEC_TMP.densMul=1; SEC_TMP.hwMul=1;
+    SEC_TMP.bank=0; SEC_TMP.grade=1; SEC_TMP.move=0.25; SEC_TMP.rise=0.2; return SEC_TMP;
+  }
+  const da = SECTIONS[a.type];
+  let safeMul = da.safeMul, densMul = da.densMul, hwMul = da.hwMul;
+  let bank = da.bank * a.sign, move = da.move, grade = da.grade, rise = da.rise;
+
+  const nxt = list[ai+1];
+  if (nxt && z > a.z1 - a.blend){
+    const t  = clamp((z - (a.z1 - a.blend)) / a.blend, 0, 1) * 0.5;
+    const dn = SECTIONS[nxt.type];
+    safeMul += (dn.safeMul - safeMul) * t;
+    densMul += (dn.densMul - densMul) * t;
+    hwMul   += (dn.hwMul   - hwMul)   * t;
+    bank    += (dn.bank * nxt.sign - bank) * t;
+    move    += (dn.move - move) * t;
+    grade   += (dn.grade - grade) * t;
+    rise    += (dn.rise - rise) * t;
+  }
+  SEC_TMP.type=a.type; SEC_TMP.safeMul=safeMul; SEC_TMP.densMul=densMul;
+  SEC_TMP.hwMul=hwMul; SEC_TMP.bank=bank; SEC_TMP.move=move;
+  SEC_TMP.grade=grade; SEC_TMP.rise=rise;
+  return SEC_TMP;
+}
+
+/* ==========================================================================
+   JUMPS
+   A hole in the floor. Air time is fixed by the hole's own design, so it is
+   always clearable and the launch is never the gamble. What you are buying is
+   a stretch where your steering is worth AIR_CTRL of normal and the track can
+   move underneath you, so the landing has to be aimed before you leave.
+   ========================================================================== */
+/* Holes are sized for FLAT ground on purpose. On a descent the floor falls away
+   underneath you and the arc lasts longer, so a flat-sized hole is always
+   crossed with room to spare and the steeper the section the more spare there
+   is. Sizing from the real grade instead would mean sampling the ground at the
+   lip, which forces the hole to be planned late, and a long section only comes
+   fully into range once the player is already well inside it. Holes were being
+   planned behind the launch point. */
+function planGap(sec, v){
+  const pi    = Math.floor(run.rnd() * K.GAP_PATTERNS.length);
+  const mults = K.GAP_PATTERNS[pi];
+  const big   = pi === K.GAP_BIG_AT;
+  const base  = big ? K.GAP_T_MAX * (0.86 + run.rnd() * 0.14)
+                    : K.GAP_T_MIN + run.rnd() * (K.GAP_T_MAX - K.GAP_T_MIN);
+  let z = sec.z0 + (sec.z1 - sec.z0) * (0.18 + run.rnd() * 0.16);
+
+  for (let i = 0; i < mults.length; i++){
+    /* Never below GAP_T_MIN. The apex of an arc is GRAV*t^2/8, so shaving the
+       minimum produced hops a few units tall that any bump swallowed. */
+    const tAir = clamp(base * mults[i], K.GAP_T_MIN, K.GAP_T_MAX);
+    const len  = Math.min(v * tAir * (1 - K.GAP_MARGIN),
+                          D.VIEW_Z * K.GAP_MAX_VIEW);
+    if (z + len > sec.z1 - 160) break;
+    gaps.push({ z0:z, z1:z + len,
+                shift: (run.rnd() < 0.5 ? -1 : 1) * airReach(tAir) * K.JUMP_SHIFT
+                       * (0.55 + run.rnd() * 0.45) });
+    /* Sized at V_MAX, not at the speed this was planned at. You always arrive
+       faster than you were generated, and the descent stretches the arc with
+       speed, so a strip measured against the planning speed comes up short at
+       the top end and you touch down inside the next hole. */
+    z += len + K.GAP_SPACE_T * K.V_MAX;
+  }
+}
+
+function planTunnel(sec){
+  tunnels.push({ z0: sec.z0 + 40, z1: sec.z1 - 40 });
+}
+
+/* The city. Bases sit at the track's own elevation where each tower stands, so
+   a tower ahead is always below you by grade times distance. Falling toward it
+   makes it climb the screen, which is the descent made visible. */
+function genTowers(zMax){
+  if (!K.CITY_ON) return;
+  while (gen.nextTowerZ < zMax){
+    const z  = gen.nextTowerZ;
+    const tr = sampleTrack(z);
+    for (let side = -1; side <= 1; side += 2){
+      if (run.rnd() > K.CITY_CHANCE) continue;
+      const off = tr.hw + K.CITY_NEAR + run.rnd() * run.rnd() * K.CITY_SPREAD;
+      const w   = K.CITY_W_MIN + run.rnd() * (K.CITY_W_MAX - K.CITY_W_MIN);
+      towers.push({
+        z: z + (run.rnd() - 0.5) * K.CITY_SPACING,
+        x: tr.cx + side * off,
+        w: w, d: w * (0.7 + run.rnd() * 0.8),
+        base: tr.y - run.rnd() * K.CITY_SINK,
+        h: K.CITY_H_MIN + run.rnd() * (K.CITY_H_MAX - K.CITY_H_MIN),
+        tone: run.rnd()
+      });
+    }
+    if (K.CRAFT_ON && run.rnd() < K.CRAFT_CHANCE){
+      craft.push({ z: z + (run.rnd()-0.5) * K.CITY_SPACING,
+                   /* PLUS. Towers do base + h to go up, and I subtracted here,
+                      so every craft was flying well below the deck. */
+                   x0: tr.cx, y: tr.y + K.CRAFT_HI + run.rnd() * K.CRAFT_HI_VAR,
+                   dir: run.rnd() < 0.5 ? -1 : 1,
+                   sp: K.CRAFT_V * (0.55 + run.rnd() * 0.9),
+                   ph: run.rnd() * 10000,
+                   sz: 0.7 + run.rnd() * 0.8 });
+    }
+    gen.nextTowerZ += K.CITY_SPACING * (0.55 + run.rnd() * 0.9);
+  }
+  if (towers.length > 400){
+    const cut = P.z - 600;
+    towers = towers.filter(t => t.z > cut);
+  }
+}
+
+function tunnelAt(z){
+  for (let i = 0; i < tunnels.length; i++){
+    const t = tunnels[i];
+    if (z >= t.z0 && z <= t.z1) return t;
+  }
+  return null;
+}
+
+function gapAt(z){
+  for (let i = 0; i < gaps.length; i++){
+    const g = gaps[i];
+    if (z >= g.z0 && z <= g.z1) return g;
+  }
+  return null;
+}
+
+/* ==========================================================================
+   TRACK GENERATION
+
+   Order is load-bearing. The safe path s(z) is generated first with its slope
+   bounded so it is always followable at maximum speed. The track centre is an
+   offset from it. Tilt is smoothed on top. Blocks are then placed in what is
+   left, never inside the corridor around the safe line.
+
+   The guarantee is that a passable path always exists. It is NOT that the path
+   is easy to stand on: the tilt is what turns holding it into work.
+   ========================================================================== */
+function ensureSlices(zMax){
+  ensureSections(zMax + K.SLICE_DZ * 4);
+  const need = Math.ceil(zMax / K.SLICE_DZ) + 2;
+  while (gen.idx0 + gen.slices.length < need){
+    const gi  = gen.idx0 + gen.slices.length;
+    const z   = gi * K.SLICE_DZ;
+    const sec = secAt(z);
+
+    if (z >= gen.sNext){
+      gen.sNext = z + K.SAFE_TURN * (0.6 + run.rnd() * 0.8);
+      const pull = -gen.sPos / K.SAFE_ROAM;
+      gen.sDir = clamp(run.rnd()*2 - 1 + pull*1.1, -1, 1);
+    }
+    gen.sPos += gen.sDir * D.SAFE_SLOPE * sec.safeMul * K.SLICE_DZ;
+
+    const hw = hwNow() * sec.hwMul;
+
+    const lim = Math.max(10, hw - safeMarginNow());
+    if (z >= gen.offNext){
+      gen.offNext = z + K.OFF_TURN * (0.6 + run.rnd() * 0.8);
+      if (run.rnd() < K.OFF_FLIP) gen.offSide = -gen.offSide || 1;
+      gen.offGoal = gen.offSide * lim * (K.OFF_BIAS + run.rnd() * (1 - K.OFF_BIAS));
+    }
+    const stepMax = D.OFF_SLOPE * K.SLICE_DZ;
+    gen.offPos += clamp(gen.offGoal - gen.offPos, -stepMax, stepMax);
+    gen.offPos = clamp(gen.offPos, -lim, lim);
+
+    /* A hole steps the whole track sideways, so the landing is somewhere else.
+       Ramped across the hole rather than stepped at its midpoint: there is no
+       ground in between so it looks identical, but a step halfway means you only
+       learn where you are landing halfway through the flight. Ramped, the far
+       lip is at its final offset from the moment it comes into view, and the
+       line you are chasing moves smoothly under you the whole way across. */
+    for (let gi2 = 0; gi2 < gaps.length; gi2++){
+      const g = gaps[gi2];
+      if (z > g.z0 && z <= g.z1) gen.sPos += g.shift * (K.SLICE_DZ / (g.z1 - g.z0));
+    }
+
+    const ambient = K.BANK_BASE_AMP * K.BANK_MAX * Math.sin(z * 2*Math.PI / K.BANK_WAVE);
+    const target  = clamp(ambient + sec.bank * K.BANK_MAX, -K.BANK_MAX, K.BANK_MAX);
+    gen.bank += (target - gen.bank) * K.BANK_SMOOTH;
+
+    /* the descent. Elevation only ever falls, and the rate is what the eye
+       reads as steepness. */
+    const gWave  = 1 + K.GRADE_WAVE_AMP * Math.sin(z * 2*Math.PI / K.GRADE_WAVE);
+    const gTarget = clamp(K.GRADE_BASE * sec.grade * gWave, 0.10, K.GRADE_MAX);
+    /* Steepness is held constant across a hole and its landing strip. The launch
+       cancels the grade AT THE LIP, so if the ground steepens or eases while you
+       are in the air the arc no longer matches the hole and you land in it. A
+       jump happens over uniform ground, which is fair and also reads better. */
+    let holdG = false;
+    for (let gi3 = 0; gi3 < gaps.length; gi3++){
+      const g = gaps[gi3];
+      if (z > g.z0 - K.GRADE_HOLD_PAD && z < g.z1 + K.GRADE_HOLD_PAD){ holdG = true; break; }
+    }
+    if (!holdG) gen.grade += (gTarget - gen.grade) * K.GRADE_SMOOTH;
+    gen.elev  -= gen.grade * K.SLICE_DZ;
+
+    gen.slices.push({ s:gen.sPos, cx:gen.sPos + gen.offPos, hw:hw,
+                      y:gen.elev + pitch(z), ey:gen.elev,
+                      bank:gen.bank, grade:gen.grade });
+  }
+}
+
+const TR  = { cx:0, hw:0, s:0, y:0, ey:0, bank:0, grade:0 };
+/* A second buffer. sampleTrack hands back a shared object for speed, which is
+   fine until two samples are needed at once: the camera held one reference for
+   its own position and one for the ball's, they were the same object, and the
+   difference between them evaluated to zero every frame. Pass a destination to
+   sample two places safely. */
+const TR2 = { cx:0, hw:0, s:0, y:0, ey:0, bank:0, grade:0 };
+function sampleTrack(z, out){
+  const gi = z / K.SLICE_DZ;
+  let i = Math.floor(gi) - gen.idx0;
+  const last = gen.slices.length - 2;
+  if (i < 0) i = 0;
+  if (i > last) i = last;
+  const T = out || TR;
+  if (i < 0){ T.cx=0; T.hw=K.HW_START; T.s=0; T.y=pitch(z); T.ey=0; T.bank=0; T.grade=K.GRADE_BASE; return T; }
+  const f = clamp(gi - Math.floor(gi), 0, 1);
+  const a = gen.slices[i], b = gen.slices[i+1];
+  T.cx    = a.cx + (b.cx - a.cx) * f;
+  T.hw    = a.hw + (b.hw - a.hw) * f;
+  T.s     = a.s  + (b.s  - a.s ) * f;
+  T.bank  = a.bank  + (b.bank  - a.bank ) * f;
+  T.grade = a.grade + (b.grade - a.grade) * f;
+  T.y     = a.y + (b.y - a.y) * f;
+  T.ey    = a.ey + (b.ey - a.ey) * f;
+  return T;
+}
+
+/* The smooth descending plane, with neither the tilt nor the bumps on it.
+   Flights are measured against THIS. Both of the others move by tens of units
+   over the course of a flight, which is more than the whole arc of a short hop,
+   and they were swallowing it: the ball would register a landing halfway across
+   a hole it had comfortably cleared. */
+function trackY(z){ return sampleTrack(z).ey; }
+
+/* floor height at a lateral position, including tilt */
+function surfaceY(z, x){
+  const t = sampleTrack(z);
+  return t.y + t.bank * (t.cx - x);
+}
+
+function cullSlices(){
+  const keepFrom = Math.floor((P.z - D.CAM_BACK - 220) / K.SLICE_DZ);
+  const drop = keepFrom - gen.idx0;
+  if (drop > 32){ gen.slices.splice(0, drop); gen.idx0 += drop; }
+  while (gaps.length && gaps[0].z1 < P.z - 400) gaps.shift();
+  while (tunnels.length && tunnels[0].z1 < P.z - 400) tunnels.shift();
+  if (towers.length > 400){ const cut = P.z - 600; towers = towers.filter(t => t.z > cut); }
+  if (craft.length > 120){ const cut = P.z - 600; craft = craft.filter(t => t.z > cut); }
+  /* by position, never by count: dropping a section that is still being asked
+     about makes secAt() fall back to the wrong one */
+  let n = 0;
+  while (n < gen.sections.length - 2 && gen.sections[n].z1 < P.z - 600) n++;
+  if (n > 0) gen.sections.splice(0, n);
+}
+
+/* ==========================================================================
+   BLOCK PLACEMENT
+   ========================================================================== */
+function cutBand(list, a, b){
+  const out = [];
+  for (let i = 0; i < list.length; i++){
+    const x0 = list[i][0], x1 = list[i][1];
+    if (b <= x0 || a >= x1){ out.push([x0,x1]); continue; }
+    if (a > x0) out.push([x0, a]);
+    if (b < x1) out.push([b, x1]);
+  }
+  return out;
+}
+
+function laneOff(z){
+  const L = gen.lane;
+  if (!L || z < L.z0 || z > L.z1) return null;
+  if (z <= L.zp) return L.off * (z - L.z0) / (L.zp - L.z0);
+  return L.off * (1 - (z - L.zp) / (L.z1 - L.zp));
+}
+
+/* nothing stands in a hole, and nothing waits immediately past a landing */
+function rowBlocked(z){
+  for (let i = 0; i < gaps.length; i++){
+    const g = gaps[i];
+    if (z > g.z0 - K.OBST_D && z < g.z1 + K.OBST_LAND_CLEAR * speedNow()) return true;
+  }
+  return false;
+}
+
+function placeRow(z){
+  if (rowBlocked(z)) return;
+  const tr  = sampleTrack(z);
+  const sec = secAt(z);
+
+  /* The corridor widens where the section demands more steering, because a
+     line that keeps changing direction is harder to hold. This keys off the
+     section's own safeMul rather than the instantaneous slope: the slope at any
+     one moment is usually small even inside a chicane, so keying off it meant
+     the widening almost never fired where it was needed. Never narrows. */
+  const clear = clearNow() * (1 + K.OBST_CLEAR_GAIN * Math.max(0, sec.safeMul - 1));
+
+  let free = [[tr.cx - tr.hw + K.P_HW, tr.cx + tr.hw - K.P_HW]];
+  free = cutBand(free, tr.s - clear, tr.s + clear);
+
+  const lo = laneOff(z);
+  if (lo !== null){
+    const w = K.P_HW + K.SAVE_LANE_PAD;
+    free = cutBand(free, tr.s + lo - w, tr.s + lo + w);
+  }
+
+  const regions = [];
+  for (let i = 0; i < free.length; i++)
+    if (free[i][1] - free[i][0] > K.OBST_HW_MIN * 2) regions.push(free[i]);
+
+  let n = 1 + Math.floor(run.rnd() * (K.OBST_MAX_ROW + K.LATE_ROW_ADD * lateN()) * sec.densMul);
+  if (run.rnd() > sec.densMul && n > 1) n--;
+
+  for (let i = 0; i < n && regions.length; i++){
+    const ri   = Math.floor(run.rnd() * regions.length);
+    const r    = regions[ri];
+    const span = r[1] - r[0];
+    const hw   = Math.min(K.OBST_HW_MIN + run.rnd()*(K.OBST_HW_MAX - K.OBST_HW_MIN), span*0.5);
+    const rx   = r[0] + hw + run.rnd() * (span - 2*hw);
+    const aim  = clamp(tr.cx, r[0] + hw, r[1] - hw);
+    const x    = rx + (aim - rx) * K.OBST_MID_BIAS;
+
+    /* kind 0 static, 1 slides, 2 rises from the floor, 3 drops from above.
+       A sliding block is bounded by the region it was placed in, so it can never
+       wander into the corridor or into the pickup run-up. */
+    let kind = 0, mv = 0, rate = 0, ph = 0;
+    const roll = run.rnd();          /* one roll, so the table means what it says */
+    if (roll < sec.rise){
+      kind = run.rnd() < 0.5 ? 2 : 3;
+      rate = 1 / (K.OBST_CYC_MIN + run.rnd() * (K.OBST_CYC_MAX - K.OBST_CYC_MIN));
+      ph   = run.rnd();
+    } else if (roll < sec.rise + sec.move && span - 2*hw > K.OBST_SLIDE_ROOM){
+      kind = 1;
+      mv   = (run.rnd() < 0.5 ? -1 : 1) * K.OBST_MOVE_V;
+    }
+
+    obstacles.push({ z:z, x:x, hw:hw, dead:false, scored:false, kind:kind,
+                     mv:mv, rate:rate, ph:ph, lo:r[0]+hw, hi:r[1]-hw });
+
+    const leftSpan = (x - hw) - r[0], rightSpan = r[1] - (x + hw);
+    if (leftSpan >= rightSpan && leftSpan > K.OBST_HW_MIN*2) regions[ri] = [r[0], x - hw];
+    else if (rightSpan > K.OBST_HW_MIN*2)                    regions[ri] = [x + hw, r[1]];
+    else regions.splice(ri, 1);
+  }
+}
+
+/* How far through its cycle a rising or dropping block is. 0 is fully out of
+   the way, 1 is fully in it. Driven by run.t, so whether one is in your path
+   depends on when you get there. */
+function riseFrac(o){
+  if (!o.rate) return 1;
+  const c = (run.t * o.rate + o.ph) % 1;
+  return 0.5 - 0.5 * Math.cos(c * Math.PI * 2);
+}
+/* vertical extent of a block above its patch of floor, as [bottom, top] */
+function obstSpan(o, out){
+  const f = riseFrac(o);
+  if (o.kind === 2){ out[0] = 0; out[1] = K.OBST_H * f; }
+  else if (o.kind === 3){ const b = K.OBST_DROP_H * (1 - f); out[0] = b; out[1] = b + K.OBST_H; }
+  else { out[0] = 0; out[1] = K.OBST_H; }
+  return out;
+}
+const SPAN = [0,0];
+
+/* Swept overlap for one fixed step, solved analytically rather than tested at
+   the tick position. Slope tests only where the ball IS at each tick, so once
+   per-tick travel exceeds a collider's depth it can be on one side at tick n and
+   past it at tick n+1 with nothing in between, which is how it clips ramps and
+   tunnel walls. This removes that as a class rather than keeping a speed margin
+   large enough to hide it: it is exact for linear motion inside a step, so the
+   speed curve is no longer bounded by how deep a block happens to be. */
+function sweptBox(cz, halfZ, cx, halfX, z0, z1, x0, x1){
+  const bz0 = cz - halfZ, bz1 = cz + halfZ;
+  const dz = z1 - z0;
+  let t0 = 0, t1 = 1;
+  if (Math.abs(dz) > 1e-9){
+    t0 = Math.max(0, (bz0 - z0) / dz);
+    t1 = Math.min(1, (bz1 - z0) / dz);
+  } else if (z0 < bz0 || z0 > bz1) return false;
+  if (t0 > t1) return false;
+  const xa = x0 + (x1 - x0) * t0, xb = x0 + (x1 - x0) * t1;
+  return Math.max(xa, xb) > cx - halfX && Math.min(xa, xb) < cx + halfX;
+}
+function obstBlocks(o, playerH){
+  obstSpan(o, SPAN);
+  if (o.kind === 2) return SPAN[1] > K.OBST_H * K.OBST_RISE_SOLID && playerH < SPAN[1] * K.AIR_OBST_H;
+  if (o.kind === 3) return SPAN[0] < K.OBST_DROP_SOLID && playerH < SPAN[1];
+  return playerH < K.OBST_H * K.AIR_OBST_H;
+}
+
+/* ==========================================================================
+   THE SAVE
+   ========================================================================== */
+function nextSaveZ(){
+  const v = speedNow();
+  return Math.max(P.z + K.SAVE_T_GAP * v, gen.nextRowZ + K.SAVE_T_LANE * v + 80);
+}
+
+function decideSave(z, v){
+  if (!K.SAVE_ON || P.save || P.z < P.rearmZ){ gen.saveDueZ = z + K.SAVE_T_GAP * v; return; }
+  /* it can be scheduled past the frontier, and sampleTrack clamps rather than
+     extends, so make sure the ground it is being placed on actually exists */
+  ensureSlices(z + K.SAVE_T_MERGE * v + K.SLICE_DZ * 4);
+  /* never in a hole, and never where the run-up would span one */
+  if (gapAt(z) || gapAt(z - K.SAVE_T_LANE * v * 0.5)){
+    gen.saveDueZ = z + K.SAVE_T_GAP * v; return;
+  }
+  const tr = sampleTrack(z);
+  const roomL = tr.s - (tr.cx - tr.hw), roomR = (tr.cx + tr.hw) - tr.s;
+  const inset = K.SAVE_R + 10;
+
+  let side = run.rnd() < 0.5 ? -1 : 1;
+  let room = side < 0 ? roomL : roomR;
+  if (room - inset < K.SAVE_OFFPATH * 0.6){ side = -side; room = side < 0 ? roomL : roomR; }
+
+  const off = Math.min(K.SAVE_OFFPATH, room - inset);
+  if (off < 24){ gen.saveDueZ = z + K.SAVE_T_GAP * v; return; }
+
+  gen.lane = { z0:z - K.SAVE_T_LANE*v, zp:z, z1:z + K.SAVE_T_MERGE*v, off:side*off };
+  save.live = true; save.z = z; save.x = tr.s + side*off; save.spin = 0;
+  gen.saveDueZ = Infinity;
+}
+
+function genWorld(zMax){
+  const v = speedNow();
+  genTowers(zMax + K.CITY_VIEW);
+  while (gen.nextRowZ < zMax){
+    if (gen.saveDueZ !== Infinity && gen.nextRowZ >= gen.saveDueZ - K.SAVE_T_LANE * v)
+      decideSave(gen.saveDueZ, v);
+    placeRow(gen.nextRowZ);
+    if (gen.beatLeft > 1){                       // still inside a challenge
+      gen.beatLeft--;
+      gen.nextRowZ += K.BEAT_ROW_T * speedNow();
+    } else {                                     // challenge over, clear the track
+      gen.beatLeft = beatRows();
+      gen.nextRowZ += beatClearZ();
+    }
+  }
+  if (obstacles.length > 90){
+    const cut = P.z - 420;
+    obstacles = obstacles.filter(o => o.z > cut);
+  }
+}
+
+function consumeSave(o){
+  P.save     = false;
+  P.iframes  = K.SAVE_IFRAMES;
+  P.burst    = K.SAVE_BURST;
+  o.dead     = true;
+  run.freeze = K.SAVE_FREEZE;
+  run.shake  = K.SHAKE_HIT * 0.55;
+  run.flashO = o; run.flashT = 0.4;
+  P.rearmZ   = P.z + K.SAVE_T_GAP * speedNow();
+  /* surfaceY, not pitch. pitch() is the bump function and PITCH_AMP has been 0
+     since the track was flattened, so it returns zero: this spawned the debris at
+     world height 0 while the deck at that depth is thousands of units below.
+     The death burst has been firing off screen ever since. */
+  const hitY = surfaceY(o.z, o.x);
+  spark(o.x + clamp(P.x - o.x, -o.hw, o.hw), hitY + K.OBST_H * 0.5, o.z,
+        K.SPARK_HIT, K.SPARK_GRAZE_SPREAD);
+  for (let i = 0; i < 12; i++){
+    const a = run.rnd() * Math.PI * 2;
+    shards.push({ x:o.x + (run.rnd()*2-1)*o.hw, y:hitY + run.rnd()*K.OBST_H, z:o.z,
+                  vx:Math.cos(a)*(120 + run.rnd()*260), vy:90 + run.rnd()*320,
+                  vz:-(60 + run.rnd()*180), life:0.55 });
+  }
+}
+
+/* ==========================================================================
+   DEATH
+   Three kinds, three grammars, no words.
+     hit   the block that got you lights up, and the screen shakes
+     fall  the edge you crossed lights up, and it does not shake
+     gap   the hole you came up short in lights up, and it does not shake
+   Shake means you hit something. No shake means you fell, and the highlight
+   says which way.
+   ========================================================================== */
+function die(kind, o, side, g){
+  run.overSec = secAt(P.z).type;
+  try {
+    /* Still counted, though nothing displays it any more: it costs one integer
+       and it is the only record of how people actually lose. */
+    diag[kind] = (diag[kind] || 0) + 1;
+    localStorage.setItem(DIAG_KEY, JSON.stringify(diag));
+  } catch(e){}
+  run.over = true; run.overKind = kind; run.overObst = o;
+  run.overSide = side; run.overGap = g || null;
+  run.overX = P.x; run.overZ = P.z;
+  run.freeze = K.DEATH_FREEZE;
+  run.shake  = kind === 'hit' ? K.SHAKE_HIT : K.SHAKE_FALL;
+  /* The debris burst elsewhere is on the SAVE path, where the pickup absorbs a
+     hit and the block shatters. An actual death had no impact at all, so this is
+     where hitting something needed to throw sparks. */
+  if (kind === 'hit' && o){
+    spark(o.x + clamp(P.x - o.x, -o.hw, o.hw), surfaceY(o.z, o.x) + K.OBST_H * 0.5,
+          o.z, K.SPARK_HIT, K.SPARK_GRAZE_SPREAD);
+  }
+  /* going over an edge throws sparks off the rail you clipped on the way out */
+  if (kind === 'fall'){
+    const tf = sampleTrack(P.z);
+    spark(tf.cx + (side || 1) * tf.hw, tf.y, P.z, K.SPARK_FALL, K.SPARK_RAIL_SPREAD);
+  }
+  P.fallV = kind === 'gap' ? -P.vy : 0;
+  state = 'dying';
+  saveBest();
+}
+
+/* ==========================================================================
+   RUN STATE
+   ========================================================================== */
+function newRun(seed){
+  run = { seed:seed, rnd:mulberry32(seed), t:0, score:0, tier:0, tierT:0,
+          chain:0, chainT:0, nearT:0, nearX:0, nearZ:0, best:0,
+          daily:false, freeze:0, shake:0,
+          over:false, overKind:null, overObst:null, overSide:0, overGap:null,
+          overX:0, overZ:0, flashO:null, flashT:0, inputLock:0 };
+  P = { x:0, z:0, vx:0, h:0, vy:0, elev:0, air:false, squash:0,
+        pz:0, px:0, ph:0, liftoff:0,
+
+        fallY:0, fallV:0, save:false, iframes:0, burst:0, rearmZ:0,
+        trail:[], trailZ:0 };
+  gen = { idx0:0, slices:[], sPos:0, sDir:0, sNext:0, offPos:0, offDir:0, offNext:0,
+          bank:0, grade:K.GRADE_BASE, elev:0, offSide:1, offGoal:0,
+          sections:[], secEnd:0,
+          nextRowZ:K.OBST_FIRST, beatLeft:1, nextTowerZ:0,
+          saveDueZ:K.SAVE_T_FIRST * K.V_START, lane:null };
+  obstacles = []; gaps = []; tunnels = []; towers = []; craft = []; shards = []; sparks.length = 0;
+  save = { live:false, z:0, x:0, spin:0 };
+  camX = 0; roll = 0; camRise = 0;
+  ensureSlices(D.SLICE_AHEAD);
+  genWorld(D.GEN_AHEAD);
+}
+function start(){
+  audioStart();
+  audioNewTrack();
+  const sd = dailyMode ? dailySeed()
+           : (urlSeed !== null ? urlSeed : (Math.random()*2147483647)|0);
+  newRun(sd);
+  run.daily = dailyMode;
+  state = 'play';
+  shareMsg = 0;
+  if (paused){ paused = false; audioResume(); }
+  showChrome(false);
+}
+
+/* ==========================================================================
+   PHYSICS. Fixed step only.
+   ========================================================================== */
+function step(dt){
+  run.t += dt;
+
+  const v = speedNow();
+  const zPrev = P.z, xPrev = P.x;
+  P.pz = P.z; P.px = P.x; P.ph = P.h;      // for render interpolation
+  P.z += v * dt;
+
+  run.score += scoreMul() * chainMul() * K.SCORE_RATE * dt;
+  /* scraping an edge throws sparks, at a rate rather than per frame */
+  if (!P.air && state === 'play'){
+    const te = sampleTrack(P.z);
+    const edge = te.hw - Math.abs(P.x - te.cx) - K.P_HW;
+    if (edge < K.SPARK_RAIL_D && edge > -K.SPARK_RAIL_IN){
+      run.sparkT = (run.sparkT || 0) + dt;
+      const per = 1 / K.SPARK_RAIL_HZ;
+      while (run.sparkT > per){
+        run.sparkT -= per;
+        const side = P.x > te.cx ? 1 : -1;
+        spark(te.cx + side*te.hw, te.y + te.bank*(te.cx - P.x), P.z, K.SPARK_RAIL, K.SPARK_RAIL_SPREAD);
+      }
+    } else run.sparkT = 0;
+  }
+  if (run.chainT > 0){ run.chainT -= dt; if (run.chainT <= 0) run.chain = 0; }
+  if (run.nearT > 0) run.nearT -= dt;
+  const tier = tierOf(curveV());
+  if (tier > run.tier){ run.tier = tier; run.tierT = K.TIER_FLASH; }
+  if (run.tierT > 0) run.tierT -= dt;
+
+  ensureSlices(P.z + D.SLICE_AHEAD);
+  genWorld(P.z + D.GEN_AHEAD);
+  cullSlices();
+
+  const tr = sampleTrack(P.z);
+
+  /* ---- lateral: thrust, tilt, drag ---- */
+  const auth = P.air ? K.AIR_CTRL : 1;
+  P.vx += inputDir() * K.LAT_ACC * auth * dt;
+  if (!P.air) P.vx += tr.bank * D.BANK_PUSH * dt;      // the floor pushes downhill
+  P.vx -= P.vx * K.LAT_DRAG * dt;
+  P.vx = clamp(P.vx, -K.LAT_MAX, K.LAT_MAX);
+  P.x += P.vx * dt;
+
+  /* ---- launch: the lip of a hole throws you ---- */
+  if (!P.air){
+    for (let i = 0; i < gaps.length; i++){
+      const g = gaps[i];
+      if (zPrev < g.z0 && P.z >= g.z0){
+        /* Sized from the hole and the speed you actually arrive at, rather than
+           a figure stored when the hole was generated. You can now arrive
+           slower than planned by braking, and a stored impulse would leave the
+           hole uncrossable through no fault of the jump. */
+        /* Launch TANGENTIALLY plus a ramp kick, not straight up. A ball leaving
+           a lip on a downhill already carries the slope's downward velocity, and
+           the ground it is flying over drops away at that same rate. Kicking
+           straight up ignores both, so the steeper the ground the longer the
+           hang time, and on a steep stutter you sail clean over the landing
+           strip into the next hole. Subtracting grade*v makes height above the
+           ground follow the designed arc exactly, whatever the ground is doing. */
+        /* floored, so a hole that is short relative to your arrival speed still
+           produces a real hop rather than a flat scoot across it */
+        const tNeed = Math.max((g.z1 - g.z0) / Math.max(v * (1 - K.GAP_MARGIN), 1),
+                               K.GAP_T_MIN);
+        P.air = true; P.h = 0;
+        P.vy  = K.GRAV * tNeed * 0.5 - tr.grade * v;
+        /* elevation of the LIP, not of where z has already advanced to. Height
+           above ground is the difference between two things that both move, and
+           on the launch step only one of them has moved yet. */
+        P.elev = trackY(g.z0);
+        P.liftoff = K.LIFTOFF_STEPS;
+        /* a kick off the lip as the wheel leaves it */
+        spark(P.x, surfaceY(g.z0, P.x), g.z0, K.SPARK_LAUNCH, K.SPARK_RAIL_SPREAD);
+        break;
+      }
+    }
+  }
+
+  /* ---- vertical. Elevation is absolute while airborne: the floor is falling
+     away underneath at grade times speed, so height above it cannot be
+     integrated on its own. ---- */
+  if (P.air){
+    P.vy   -= K.GRAV * dt;
+    P.elev += P.vy * dt;
+    P.h     = P.elev - trackY(P.z);
+    if (P.liftoff > 0){ P.liftoff--; if (P.h < 0) P.h = 0; }
+    else if (P.h <= 0){
+      const g = gapAt(P.z);
+      if (g){ die('gap', null, 0, g); return; }        // came up short
+      P.h = 0; P.vy = 0; P.air = false; P.liftoff = 0;
+      P.squash = K.LAND_SQUASH;
+      /* and a heavier burst where it comes down */
+      spark(P.x, surfaceY(P.z, P.x), P.z, K.SPARK_LAND, K.SPARK_GRAZE_SPREAD);
+      run.shake = Math.max(run.shake, K.LAND_SHAKE);
+    }
+  } else {
+    P.h = 0; P.elev = surfaceY(P.z, P.x);
+    const g = gapAt(P.z);
+    if (g){ die('gap', null, 0, g); return; }          // walked into a hole
+  }
+  if (P.squash > 0) P.squash -= dt;
+
+  /* ---- off the side. Only while your wheels are down. ---- */
+  if (!P.air && Math.abs(P.x - tr.cx) > tr.hw){
+    die('fall', null, (P.x - tr.cx) > 0 ? 1 : -1); return;
+  }
+
+  /* ---- sliding blocks ---- */
+  for (let i = 0; i < obstacles.length; i++){
+    const o = obstacles[i];
+    if (o.kind !== 1 || o.dead) continue;
+    o.x += o.mv * dt;
+    if (o.x < o.lo){ o.x = o.lo; o.mv = -o.mv; }
+    else if (o.x > o.hi){ o.x = o.hi; o.mv = -o.mv; }
+  }
+
+  /* ---- the pickup ---- */
+  if (save.live){
+    save.spin += dt * K.SAVE_SPIN;
+    if (!P.save && P.h < K.SAVE_GRAB_H &&
+        sweptBox(save.z, K.P_HD + K.SAVE_R, save.x, K.P_HW + K.SAVE_R,
+                 zPrev, P.z, xPrev, P.x)){
+      save.live = false; P.save = true; P.burst = K.SAVE_FLASH;
+      gen.saveDueZ = nextSaveZ();
+    } else if (P.z - K.P_HD > save.z + K.SAVE_R){
+      save.live = false; gen.saveDueZ = nextSaveZ();
+    }
+  }
+
+  /* ---- blocks. Per-step travel is at most V_MAX*STEP = 12.5 against a block
+     depth of 46, so nothing can be tunnelled through. Clear the top of one and
+     you pass over it. ---- */
+  if (P.iframes > 0) P.iframes -= dt;
+  else {
+    for (let i = 0; i < obstacles.length; i++){
+      const o = obstacles[i];
+      if (o.dead) continue;
+      if (sweptBox(o.z, K.OBST_D*0.5 + K.P_HD, o.x, o.hw + K.P_HW,
+                   zPrev, P.z, xPrev, P.x) &&
+          obstBlocks(o, P.h)){
+        if (P.save) consumeSave(o); else die('hit', o, 0);
+        break;
+      }
+    }
+  }
+
+  /* threaded a block: passed its depth, still alive, and close to its edge */
+  if (K.NEAR_ON){
+    for (let i = 0; i < obstacles.length; i++){
+      const o = obstacles[i];
+      if (o.scored || o.dead || o.z > P.z || o.z < zPrev) continue;
+      o.scored = true;
+      if (!obstBlocks(o, P.h)) continue;
+      const gap = Math.abs(P.x - o.x) - o.hw - K.P_HW;
+      if (gap >= 0 && gap < K.NEAR_D){
+        run.chain++; run.chainT = K.NEAR_HOLD;
+        run.nearT = K.NEAR_FLASH; run.nearX = o.x; run.nearZ = o.z;
+        obstSpan(o, SPAN);
+        spark(o.x + (P.x > o.x ? o.hw : -o.hw),
+              sampleTrack(o.z).y + SPAN[1] * K.SPARK_GRAZE_Y,
+              o.z, K.SPARK_GRAZE, K.SPARK_GRAZE_SPREAD);
+        if (run.chain > run.best) run.best = run.chain;
+      }
+    }
+  }
+
+  if (P.z - P.trailZ > K.TRAIL_DZ){
+    P.trailZ = P.z;
+    P.trail.push({ x:P.x, z:P.z, h:P.h });
+    if (P.trail.length > K.TRAIL_N) P.trail.shift();
+  }
+}
+
+let flashX = 0, flashY = 0, flashZ = 0, flashLife = 0;
+function spark(x, y, z, n, spread){
+  if (!K.SPARK_ON) return;
+  if (n >= K.SPARK_GRAZE){ flashX = x; flashY = y; flashZ = z; flashLife = K.SPARK_FLASH; }
+  for (let i = 0; i < n && sparks.length < K.SPARK_MAX; i++){
+    const a = Math.random() * Math.PI * 2;
+    const sp = K.SPARK_V0 * (0.35 + Math.random() * 0.9);
+    sparks.push({ x:x, y:y, z:z,
+      vx: Math.cos(a) * sp * spread,
+      vy: Math.abs(Math.sin(a)) * sp * 0.7 + K.SPARK_UP,
+      vz: -K.SPARK_BACK * (0.3 + Math.random() * 0.9),
+      life: K.SPARK_LIFE * (0.55 + Math.random() * 0.7) });
+  }
+}
+function updateSparks(dt){
+  if (flashLife > 0) flashLife -= dt;
+  for (let i = sparks.length - 1; i >= 0; i--){
+    const s = sparks[i];
+    s.life -= dt;
+    if (s.life <= 0){ sparks.splice(i,1); continue; }
+    s.vy -= K.SPARK_G * dt;
+    s.x += s.vx*dt; s.y += s.vy*dt; s.z += s.vz*dt;
+  }
+}
+function drawSpeedLines(){
+  if (!K.SPD_ON || state !== 'play') return;
+  const v = speedNow();
+  const top = Math.max(K.V_MAX * K.SPD_TOP, K.SPD_V0 + 1);
+  const f = clamp((v - K.SPD_V0) / (top - K.SPD_V0), 0, 1);
+  if (f < 0.02) return;
+  const m = Math.min(W, H), cx = HALFW, cy = projBase;
+  ctx.beginPath();
+  for (let i = 0; i < K.SPD_N; i++){
+    const a  = (i / K.SPD_N) * Math.PI * 2 + animT * K.SPD_SPIN;
+    /* deterministic scatter from the index, so they hold still instead of
+       strobing a fresh random set at every frame */
+    const j1 = (i * 0.6180339887) % 1, j2 = (i * 0.3819660113) % 1;
+    /* sin is positive downward on a canvas, so this is 1 for a line heading
+       straight at the deck and 0 for one going sideways or up */
+    const down = Math.max(0, Math.sin(a));
+    const r0 = m * K.SPD_R0 * (1 + down * K.SPD_CLEAR) * (0.75 + j1 * 0.9);
+    /* and the ones aimed hardest at the deck are simply left out */
+    if (down > K.SPD_SKIP) continue;
+    const ln = m * K.SPD_LEN * f * (0.45 + j2 * 1.1);
+    const c = Math.cos(a), sn = Math.sin(a);
+    ctx.moveTo(cx + c*r0, cy + sn*r0);
+    ctx.lineTo(cx + c*(r0+ln), cy + sn*(r0+ln));
+  }
+  glowStroke('#ffffff', C.player, K.SPD_W * (0.5 + f), K.SPD_A * f);
+}
+
+function drawSparks(){
+  /* the bloom goes down first, so the streaks read on top of it */
+  if (flashLife > 0){
+    const dz = flashZ - camZ;
+    if (dz > 18){
+      const sc = D.FOC / dz, f = flashLife / K.SPARK_FLASH;
+      ctx.globalAlpha = f * 0.75;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(projX(flashX, flashY, sc), projY(flashX, flashY, sc),
+              K.SPARK_FLASH_R * sc * (1.4 - f * 0.6), 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+  if (!sparks.length) return;
+  const tl = K.SPARK_TAIL;
+  ctx.beginPath();
+  let any = false;
+  for (let i = 0; i < sparks.length; i++){
+    const s = sparks[i];
+    const dz = s.z - camZ;
+    if (dz < 18) continue;
+    const sc = D.FOC / dz;
+    const bx = s.x - s.vx*tl, by = s.y - s.vy*tl, bz = s.z - s.vz*tl;
+    const dz2 = bz - camZ;
+    if (dz2 < 18) continue;
+    ctx.moveTo(projX(s.x,s.y,sc), projY(s.x,s.y,sc));
+    ctx.lineTo(projX(bx,by,D.FOC/dz2), projY(bx,by,D.FOC/dz2));
+    any = true;
+  }
+  if (any) glowStroke('#ffffff', C.lip, K.SPARK_W, 1);
+}
+
+function updateShards(dt){
+  for (let i = shards.length - 1; i >= 0; i--){
+    const s = shards[i];
+    s.life -= dt;
+    if (s.life <= 0){ shards.splice(i,1); continue; }
+    s.vy -= 1800 * dt;
+    s.x += s.vx*dt; s.y += s.vy*dt; s.z += s.vz*dt;
+  }
+}
+
+function tick(dt){
+  if (run.flashT > 0) run.flashT -= dt;
+  if (P && P.burst > 0) P.burst -= dt;
+  if (run.shake > 0.2) run.shake -= run.shake * 10 * dt; else run.shake = 0;
+  updateShards(dt);
+  updateSparks(dt);
+
+  if (state === 'dying'){
+    run.freeze -= dt;
+    if (run.overKind !== 'hit'){
+      P.fallV += K.FALL_G * dt;
+      P.fallY -= P.fallV * dt;
+      P.x     += P.vx * dt;
+    }
+    if (run.freeze <= 0){ state = 'dead'; run.inputLock = 0.3; showChrome(true); }
+    return;
+  }
+  if (run.freeze > 0){ run.freeze -= dt; return; }
+  step(dt);
+}
+
+/* The title holds still. It used to creep forward, which meant the picture was
+   sliding and bobbing behind the buttons you were trying to read. */
+function tickTitle(dt){}
+
+/* ==========================================================================
+   INPUT. e.code throughout, so caps lock cannot produce dead keys.
+   ========================================================================== */
+const keys = { l:false, r:false };
+const drag = { id:null, ox:0, val:0 };
+
+function inputDir(){
+  let d = 0;
+  if (keys.l) d -= 1;
+  if (keys.r) d += 1;
+  if (d === 0 && drag.id !== null) d = drag.val;   // analogue on touch
+  return clamp(d, -1, 1);
+}
+function dragMove(x){
+  let d = (x - drag.ox) / D.DRAG_PX;
+  if (d >  1){ drag.ox = x - D.DRAG_PX; d =  1; }   // origin follows at the stops
+  if (d < -1){ drag.ox = x + D.DRAG_PX; d = -1; }
+  drag.val = d;
+}
+function anyInput(){
+  if (setOpen) return;                       // the panel owns the screen
+  if (state === 'title') start();
+  else if (state === 'dead' && run.inputLock <= 0) start();
+}
+/* Rebuild the scene behind the panel from the current settings. Colours and the
+   camera take effect on the next frame by themselves, but steepness, width,
+   obstacles and the rest are baked into the track when it is generated, so
+   without this the only way to see them was to start a run and find out. */
+function previewRefresh(){
+  const keep = state;
+  newRun(dailyMode ? dailySeed() : run.seed);
+  state = keep;
+  P.z = K.PREVIEW_Z;
+  ensureSlices(P.z + D.SLICE_AHEAD);
+  genWorld(P.z + D.GEN_AHEAD);
+  const tr = sampleTrack(P.z);
+  P.x = tr.s;
+  /* Render interpolates between the previous tick and this one. Moving the ball
+     without moving its previous position left the interpolator swinging between
+     z=0 and z=1500 every frame, which is the vibration. */
+  P.pz = P.z; P.px = P.x; P.ph = P.h; P.vx = 0; P.vy = 0;
+  rZ = P.z; rX = P.x; rH = P.h;
+  camX = P.x; camZ = P.z - D.CAM_BACK; camRise = 0;
+}
+function setFromX(i, x){
+  const e = OPT[i];
+  const g = setGeom();
+  e.v = e.min + (e.max - e.min) * clamp((x - g.barX) / g.barW, 0, 1);
+  applyOpts(); saveOpts();
+  if (e.gen) previewRefresh();
+}
+/* one source of truth for the layout, so the hit areas cannot drift from the
+   drawing: the old code computed the bar position twice */
+function setGeom(){
+  const s = Math.min(1, W/420);
+  const rows = OPT.length;
+  /* the buttons sit above this, and this sits above anything the page or the
+     phone puts at the bottom of the window */
+  const foot = K.SET_FOOT*s + 34*s;
+  const head = 34*s;
+  const rowH = Math.max(12, Math.min(K.SET_ROW_MAX*s,
+                        (H*(1 - K.SET_ARENA_MIN) - head - foot) / rows));
+  const top = Math.max(H*K.SET_ARENA_MIN, H - (head + rowH*rows + foot));
+  return { s:s, rowH:rowH, top:top, head:head,
+           firstY: top + head + rowH*0.5,
+           barX: W*0.40, barW: W*0.46 };
+}
+/* returns a UI control if the tap landed on one, else null */
+function uiHit(x, y){
+  for (const k in UI){
+    const r = UI[k];
+    if (r && x >= r[0] && x <= r[0]+r[2] && y >= r[1] && y <= r[1]+r[3]) return k;
+  }
+  return null;
+}
+
+addEventListener('keydown', e => {
+  const c = e.code;
+  if (c === 'ArrowLeft'  || c === 'KeyA'){ keys.l = true; e.preventDefault(); }
+  else if (c === 'ArrowRight' || c === 'KeyD'){ keys.r = true; e.preventDefault(); }
+  else if (c === 'KeyF'){ perf.show = !perf.show; return; }
+  else if (c === 'KeyR' && state === 'title'){ dailyMode = false; audioStart(); start(); return; }
+  else if (c === 'KeyM'){ audioToggle(); return; }
+  else if (c === 'KeyN'){ audioNewTrack(); return; }
+  else if ((c === 'KeyP' || c === 'Escape') && state === 'play'){
+    paused = !paused;
+    if (paused) audioPause(); else audioResume();
+    return;
+  }
+  if (e.repeat) return;
+  if (c === 'Tab' || e.metaKey || e.ctrlKey || e.altKey) return;
+  anyInput();
+}, { passive:false });
+addEventListener('keyup', e => {
+  if (e.code === 'ArrowLeft'  || e.code === 'KeyA') keys.l = false;
+  if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.r = false;
+});
+addEventListener('blur', () => { drag.id = null; drag.val = 0; keys.l = keys.r = false; });
+
+/* ==========================================================================
+   RENDER
+   ========================================================================== */
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, K.DPR_CAP);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width  = Math.max(1, Math.round(W * DPR));
+  cv.height = Math.max(1, Math.round(H * DPR));
+  HALFW = W * 0.5; horizonY = H * K.HORIZON;
+  D.DRAG_PX = Math.max(K.DRAG_MIN_PX, Math.min(W, H) * K.DRAG_FRAC);
+  skyGrad = null; titleBloomKey = '';
+}
+
+function drawSky(){
+  if (!skyGrad){
+    skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+    skyGrad.addColorStop(0.00, C.skyTop);
+    skyGrad.addColorStop(0.24, C.skyMid);
+    skyGrad.addColorStop(0.34, C.skyLow);
+    skyGrad.addColorStop(0.40, C.skyHaze);
+    skyGrad.addColorStop(0.58, C.skyMid);
+    skyGrad.addColorStop(1.00, C.skyTop);
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(-40, -40, W + 80, H + 80);
+}
+
+/* Roll is applied to world points only, about the horizon, so the sky stays
+   put and no overdraw is needed to cover rotated corners. */
+/* Depth is recovered from the scale the caller already computed, so every call
+   site is untouched: sc is FOCAL/dz by construction. */
+function projX(x, y, sc){
+  const dz = D.FOC / sc;
+  const Y  = y - camY;
+  const Zp = Math.max(dz * pitchC - Y * pitchS, 8);
+  const sx = D.FOC * (x - camX) / Zp;
+  const sy = -D.FOC * (Y * pitchC + dz * pitchS) / Zp;
+  return HALFW + sx * rollC - sy * rollS;
+}
+function projY(x, y, sc){
+  const dz = D.FOC / sc;
+  const Y  = y - camY;
+  const Zp = Math.max(dz * pitchC - Y * pitchS, 8);
+  const sx = D.FOC * (x - camX) / Zp;
+  const sy = -D.FOC * (Y * pitchC + dz * pitchS) / Zp;
+  return projBase + sx * rollS + sy * rollC;
+}
+
+function buildPts(){
+  pts.length = 0;
+  /* Sampled at a fixed number of steps across the visible SECONDS rather than on
+     the generation grid. The grid stays at SLICE_DZ for indexing; how far ahead
+     we draw is now free to stretch with speed at no extra cost. */
+  const spanZ = D.VIEW_Z - K.NEAR_Z;
+  for (let i = 0; i < D.SLICES; i++){
+    const dz = K.NEAR_Z + spanZ * Math.pow(i / (D.SLICES - 1), K.VIEW_CURVE);
+    const z  = camZ + dz;
+    const sl = sampleTrack(z);
+    const sc = D.FOC / dz;
+    const xl = sl.cx - sl.hw,          xr  = sl.cx + sl.hw;
+    const xli= xl + K.LIP_W,           xri = xr - K.LIP_W;
+    const yl = sl.y + sl.bank * sl.hw,  yr = sl.y - sl.bank * sl.hw;
+    const yli= sl.y + sl.bank * (sl.hw - K.LIP_W);
+    const yri= sl.y - sl.bank * (sl.hw - K.LIP_W);
+    const q = { band: Math.floor(z / D.BAND_Z), z:z, sc:sc, solid: !gapAt(z),
+      lx:projX(xl,yl,sc),   ly:projY(xl,yl,sc),
+      rx:projX(xr,yr,sc),   ry:projY(xr,yr,sc),
+      lix:projX(xli,yli,sc),liy:projY(xli,yli,sc),
+      rix:projX(xri,yri,sc),riy:projY(xri,yri,sc) };
+    pts.push(q);
+  }
+}
+
+/* Everything below the horizon gets a darker fill. Without it, the space beside
+   the track is the same gradient as the sky above it, and the track reads as
+   floating rather than cutting through a landscape. Rotated with the roll. */
+/* A ridge sitting exactly at eye level, effectively infinitely far away, that
+   never descends. Everything below it is void. This is the reference the descent
+   is measured against: the track vanishes a long way below this line, and the
+   gap grows as the ground steepens. Without it a constant grade is geometrically
+   identical to flat ground and reads as flat hilly terrain, which is what it did. */
+function ridgeAt(u){
+  return K.RIDGE_AMP * (0.52 * Math.sin(u) +
+                        0.31 * Math.sin(u * 2.37 + 1.7) +
+                        0.17 * Math.sin(u * 5.11 + 0.4));
+}
+/* Bloom without shadowBlur or filters: stroke the path wide and faint, then
+   narrow and bright. Two calls, no fill-rate cost, and it is the entire reason
+   a black deck reads as a lit surface. */
+function glowStroke(col, glowCol, w, alpha){
+  ctx.strokeStyle = glowCol;
+  ctx.globalAlpha = alpha * K.GLOW_A;
+  ctx.lineWidth   = w * K.GLOW_W;
+  ctx.stroke();
+  ctx.strokeStyle = col;
+  ctx.globalAlpha = alpha;
+  ctx.lineWidth   = w;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawHorizon(){
+  const par = camX * K.RIDGE_PARALLAX;
+  const N = 30, M = (W + H);
+  ctx.fillStyle = C.void;
+  ctx.globalAlpha = K.VOID_LINE;
+  ctx.beginPath();
+  for (let i = 0; i <= N; i++){
+    const sx = -M*0.5 + (W + M) * i / N;
+    const sy = -(K.RIDGE_BASE + Math.abs(ridgeAt((sx + par) * K.RIDGE_SCALE)));
+    const x = HALFW + sx*rollC - sy*rollS;
+    const y = hY    + sx*rollS + sy*rollC;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  /* close the shape downward, well past the bottom of the screen */
+  const dx = -rollS * M * 3, dy = rollC * M * 3;
+  const ex = HALFW + (W*0.5 + M*0.5)*rollC, ey = hY + (W*0.5 + M*0.5)*rollS;
+  ctx.lineTo(ex + dx, ey + dy);
+  ctx.lineTo(HALFW - (W*0.5 + M*0.5)*rollC + dx, hY - (W*0.5 + M*0.5)*rollS + dy);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  /* a thin bright line on the horizon itself, so the eye has something to
+     measure the drop against even where the ridge is low */
+  ctx.strokeStyle = C.horizon;
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.42;
+  ctx.beginPath();
+  ctx.moveTo(HALFW - M*rollC, hY - M*rollS);
+  ctx.lineTo(HALFW + M*rollC, hY + M*rollS);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawTower(t){
+  const zn = t.z - t.d*0.5, zf = t.z + t.d*0.5;
+  if (zn - camZ < 24) return;
+  const pn = D.FOC / (zn - camZ);
+  const l = t.x - t.w*0.5, r = t.x + t.w*0.5;
+  const y0 = t.base, y1 = t.base + t.h;
+  const topY = projY(t.x, y1, pn), botY = projY(t.x, y0, pn);
+  const px0 = projX(l, y0, pn), px1 = projX(r, y0, pn);
+
+  /* far ones are a silhouette only: at this size a second face buys nothing */
+  if (Math.abs(botY - topY) < K.CITY_FLAT_PX){
+    ctx.fillStyle = t.tone < 0.5 ? C.cityA : C.cityB;
+    ctx.beginPath();
+    ctx.moveTo(projX(l,y1,pn), projY(l,y1,pn)); ctx.lineTo(projX(r,y1,pn), projY(r,y1,pn));
+    ctx.lineTo(projX(r,y0,pn), projY(r,y0,pn)); ctx.lineTo(projX(l,y0,pn), projY(l,y0,pn));
+    ctx.closePath(); ctx.fill();
+    towerGrid(l, r, y0, y1, pn, 0, Math.abs(botY - topY) > K.GRID_TOWER_PX);
+    return;
+  }
+  const pf = D.FOC / (zf - camZ);
+  ctx.fillStyle = C.cityB;
+  ctx.beginPath();
+  ctx.moveTo(projX(l,y1,pf), projY(l,y1,pf)); ctx.lineTo(projX(r,y1,pf), projY(r,y1,pf));
+  ctx.lineTo(projX(r,y1,pn), projY(r,y1,pn)); ctx.lineTo(projX(l,y1,pn), projY(l,y1,pn));
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C.cityA;
+  ctx.beginPath();
+  ctx.moveTo(projX(l,y1,pn), projY(l,y1,pn)); ctx.lineTo(projX(r,y1,pn), projY(r,y1,pn));
+  ctx.lineTo(projX(r,y0,pn), projY(r,y0,pn)); ctx.lineTo(projX(l,y0,pn), projY(l,y0,pn));
+  ctx.closePath(); ctx.fill();
+  if (Math.abs(botY - topY) > K.CITY_EDGE_PX){
+    ctx.strokeStyle = C.cityEdge;
+    ctx.lineWidth = Math.max(1, 3*pn);
+    ctx.stroke();
+  }
+  towerGrid(l, r, y0, y1, pn, pf, Math.abs(botY - topY) > K.GRID_TOWER_PX);
+  towerRotor(t, (l + r) * 0.5, y1, r - l);
+}
+
+/* One path for every building's lattice, one stroke at the end. Per-tower
+   strokes would be 36 state changes a frame; this is one. */
+const gridSeg = [];
+/* Block outlines get their own batch, one stroke per obstacle kind. */
+const obstSeg = [];
+let obstEdgeCol = '';
+/* One bucket per accent. The static lattice still goes out in a single stroke;
+   the moving parts are split so each can carry its own colour, which is four
+   extra strokes a frame in total. */
+const fxSeg = [[],[],[],[]];
+function gseg(x0,y0,x1,y1){ gridSeg.push(x0,y0,x1,y1); }
+function fseg(ci,x0,y0,x1,y1){ const a = fxSeg[ci & 3]; a.push(x0,y0,x1,y1); }
+/* Colour index from position rather than from the seeded stream: drawing a
+   random number here would shift every later call and change the whole track. */
+function fxOf(z, x){ return (Math.floor(z * 0.0131) + Math.floor(x * 0.0073)) & 3; }
+
+
+/* One path for every building's lattice, one stroke at the end. Per-tower
+   strokes would be 36 state changes a frame; this is one. */
+function towerGrid(l, r, y0, y1, pn, pf, tall){
+  if (!K.GRID_TOWER || !tall) return;
+  for (let i = 1; i < K.GRID_TOWER_V; i++){
+    const x = l + (r - l) * i / K.GRID_TOWER_V;
+    gseg(projX(x,y1,pn), projY(x,y1,pn), projX(x,y0,pn), projY(x,y0,pn));
+  }
+  for (let i = 1; i < K.GRID_TOWER_H; i++){
+    const y = y0 + (y1 - y0) * i / K.GRID_TOWER_H;
+    gseg(projX(l,y,pn), projY(l,y,pn), projX(r,y,pn), projY(r,y,pn));
+  }
+  if (pf){                                   // rungs across the visible roof
+    for (let i = 1; i < K.GRID_TOWER_V; i++){
+      const x = l + (r - l) * i / K.GRID_TOWER_V;
+      gseg(projX(x,y1,pf), projY(x,y1,pf), projX(x,y1,pn), projY(x,y1,pn));
+    }
+  }
+}
+
+/* A slow rotor. Mounted partway up rather than on the roof: a tall tower near
+   the camera puts its roof tens of thousands of pixels above the frame. */
+function towerRotor(t, cx, top, w){
+  if (!K.ROTOR_ON || t.h < K.ROTOR_MIN_H || t.tone > K.ROTOR_CHANCE) return;
+  const dz = t.z - camZ;
+  if (dz < 60) return;
+  const sc = D.FOC / dz;
+  const r  = w * K.ROTOR_R;
+  const a0 = animT * (K.ROTOR_RPM / 60) * Math.PI * 2 + t.tone * 9;
+  const hub = t.base + Math.min(t.h * 0.9, K.ROTOR_Y);
+  const ci  = fxOf(t.z, t.x);
+  const hx = projX(cx, hub, sc), hy = projY(cx, hub, sc);
+  for (let b = 0; b < K.ROTOR_BLADES; b++){
+    const a = a0 + b * Math.PI * 2 / K.ROTOR_BLADES;
+    fseg(ci, hx, hy, projX(cx + Math.cos(a)*r, hub + Math.sin(a)*r, sc),
+                     projY(cx + Math.cos(a)*r, hub + Math.sin(a)*r, sc));
+  }
+}
+
+/* Craft crossing the sky, well above and off the track, with a trail so the
+   motion reads: a bare outline triangle looks like a glitch. */
+function drawCraft(){
+  if (!K.CRAFT_ON || !craft || !craft.length) return;
+  const far = camZ + K.CITY_VIEW;
+  for (let i = 0; i < craft.length; i++){
+    const c = craft[i];
+    if (c.z < camZ + 200 || c.z > far) continue;
+    const dz = c.z - camZ, sc = D.FOC / dz;
+    const span = K.CRAFT_RANGE * 2;
+    let u = (c.sp * animT + c.ph) % span;
+    if (u < 0) u += span;
+    const x = c.x0 + c.dir * (u - K.CRAFT_RANGE);
+    const L = K.CRAFT_LEN * c.sz, Wd = K.CRAFT_W * c.sz;
+    const nose = x + c.dir * L * 0.5, tail = x - c.dir * L * 0.5;
+    const px1 = projX(nose, c.y, sc), py1 = projY(nose, c.y, sc);
+    const px2 = projX(tail, c.y + Wd*0.35, sc), py2 = projY(tail, c.y + Wd*0.35, sc);
+    const px3 = projX(tail, c.y - Wd*0.35, sc), py3 = projY(tail, c.y - Wd*0.35, sc);
+    const ci = fxOf(c.z, c.ph);
+    fseg(ci,px1,py1,px2,py2); fseg(ci,px2,py2,px3,py3); fseg(ci,px3,py3,px1,py1);
+    const tx = x - c.dir * L * K.CRAFT_TRAIL;
+    fseg(ci, px1, py1, projX(tx, c.y, sc), projY(tx, c.y, sc));
+    ctx.fillStyle = C.fx[ci];
+    ctx.globalAlpha = 0.9;
+    const r = Math.max(1.2, 5 * sc * c.sz);
+    ctx.beginPath(); ctx.arc(px1, py1, r, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawCity(){
+  if (!K.CITY_ON) return;
+  gridSeg.length = 0;
+  const far = camZ + K.CITY_VIEW;
+  const vis = [];
+  for (let i = 0; i < towers.length; i++){
+    const t = towers[i];
+    if (t.z < camZ + 40 || t.z > far) continue;
+    vis.push(t);
+  }
+  vis.sort((a,b) => b.z - a.z);
+  const n = Math.min(vis.length, D.CITY_MAX);
+  for (let i = vis.length - n; i < vis.length; i++) drawTower(vis[i]);
+  drawCraft();
+  if (gridSeg.length){
+    ctx.beginPath();
+    for (let i = 0; i < gridSeg.length; i += 4){
+      ctx.moveTo(gridSeg[i], gridSeg[i+1]);
+      ctx.lineTo(gridSeg[i+2], gridSeg[i+3]);
+    }
+    glowStroke(C.gridTower, C.cityEdge, K.GRID_W, K.GRID_TOWER_A);
+    gridSeg.length = 0;
+  }
+  for (let i = 0; i < fxSeg.length; i++){
+    const a = fxSeg[i];
+    if (!a.length) continue;
+    ctx.beginPath();
+    for (let j = 0; j < a.length; j += 4){
+      ctx.moveTo(a[j], a[j+1]); ctx.lineTo(a[j+2], a[j+3]);
+    }
+    glowStroke(C.fx[i], C.fx[i], K.GRID_W * 1.25, K.FX_A);
+    a.length = 0;
+  }
+}
+
+/* Ceiling and walls, drawn before the floor so the floor stays on top. */
+const TUN = { lx:[], ly:[], rx:[], ry:[], clx:[], cly:[], crx:[], cry:[] };
+function tunnelRing(k, dz){
+  ctx.beginPath();
+  ctx.moveTo(TUN.lx[k], TUN.ly[k]);   ctx.lineTo(TUN.clx[k], TUN.cly[k]);
+  ctx.lineTo(TUN.crx[k], TUN.cry[k]); ctx.lineTo(TUN.rx[k], TUN.ry[k]);
+  glowStroke(C.portal, C.cityEdge,
+             Math.max(2, K.TUNNEL_PORTAL * D.FOC / Math.max(dz, 20)), 0.95);
+}
+/* Built from the tunnel's OWN z range, not from whichever view samples happen to
+   fall inside it. Those samples slide continuously as the camera advances, so the
+   index where the tunnel flag flipped snapped from one to the next every frame
+   and the mouth jumped by a whole sample spacing. Samples are packed near the
+   camera, so the far mouth had the widest spacing and quivered hardest. Walking
+   the real endpoints removes it exactly. */
+function drawTunnels(){
+  if (!tunnels.length) return;
+  const near = camZ + K.NEAR_Z, far = camZ + D.VIEW_Z;
+  for (let ti = 0; ti < tunnels.length; ti++){
+    const t = tunnels[ti];
+    if (t.z1 < near || t.z0 > far) continue;
+    const a = Math.max(t.z0, near), b = Math.min(t.z1, far);
+    if (b - a < 2) continue;
+    for (const kk in TUN) TUN[kk].length = 0;
+    const N = K.TUNNEL_SEG;
+    for (let i2 = 0; i2 <= N; i2++){
+      const z  = a + (b - a) * i2 / N;
+      const dz = z - camZ;
+      if (dz < 14) continue;
+      const sc = D.FOC / dz;
+      const sl = sampleTrack(z);
+      const xl = sl.cx - sl.hw, xr = sl.cx + sl.hw;
+      const yl = sl.y + sl.bank * sl.hw, yr = sl.y - sl.bank * sl.hw;
+      const yc = yl + D.TUNNEL_H,        yd = yr + D.TUNNEL_H;
+      TUN.lx.push(projX(xl,yl,sc));  TUN.ly.push(projY(xl,yl,sc));
+      TUN.rx.push(projX(xr,yr,sc));  TUN.ry.push(projY(xr,yr,sc));
+      TUN.clx.push(projX(xl,yc,sc)); TUN.cly.push(projY(xl,yc,sc));
+      TUN.crx.push(projX(xr,yd,sc)); TUN.cry.push(projY(xr,yd,sc));
+    }
+    const n = TUN.lx.length;
+    if (n < 2) continue;
+    const band = (ax,ay,bx,by) => {
+      ctx.beginPath();
+      ctx.moveTo(ax[0], ay[0]);
+      for (let k = 1; k < n; k++) ctx.lineTo(ax[k], ay[k]);
+      for (let k = n-1; k >= 0; k--) ctx.lineTo(bx[k], by[k]);
+      ctx.closePath(); ctx.fill();
+    };
+    ctx.fillStyle = C.tunnel;     band(TUN.clx, TUN.cly, TUN.crx, TUN.cry);
+    ctx.fillStyle = C.tunnelWall; band(TUN.lx,  TUN.ly,  TUN.clx, TUN.cly);
+                                  band(TUN.rx,  TUN.ry,  TUN.crx, TUN.cry);
+    if (a <= t.z0 + 1) tunnelRing(0, a - camZ);
+    if (b >= t.z1 - 1) tunnelRing(n - 1, b - camZ);
+  }
+}
+
+function ribbonRun(i0, i1){
+  /* Painter's algorithm, FAR TO NEAR. It used to run near to far, so far bands
+     were painted last and drew straight over the crest in front of them: you
+     could see through a hill before you went over it. A heightfield viewed from
+     one end only occludes correctly in this order. */
+  const bands = [];
+  let i = i0;
+  while (i < i1){
+    const bandIdx = pts[i].band;
+    let j = i;
+    while (j < i1 && pts[j+1].band === bandIdx) j++;
+    if (j === i) j = i + 1;
+    if (j > i1) j = i1;
+    bands.push(i, j, bandIdx);
+    i = j;
+  }
+
+  for (let b = bands.length - 3; b >= 0; b -= 3){
+    const a = bands[b], c = bands[b+1], bi = bands[b+2];
+    /* fade the far end into the void so the track dissolves instead of stopping
+       at a hard edge in mid air */
+    const frac = (pts[a].z - camZ) / Math.max(D.VIEW_Z, 1);
+    const fade = 1 - clamp((frac - K.FADE_START) / (1 - K.FADE_START), 0, 1) * K.FADE_AMT;
+    ctx.globalAlpha = fade;
+
+    ctx.beginPath();
+    ctx.moveTo(pts[a].lx, pts[a].ly);
+    for (let k = a+1; k <= c; k++) ctx.lineTo(pts[k].lx, pts[k].ly);
+    for (let k = c; k >= a; k--)   ctx.lineTo(pts[k].rx, pts[k].ry);
+    ctx.closePath();
+    ctx.fillStyle = (bi & 1) ? C.bandB : C.bandA;
+    ctx.fill();
+
+    if (fade > K.FADE_LIP){                 // far lips are not worth the fill
+      ctx.fillStyle = C.lip;
+      ctx.beginPath();
+      ctx.moveTo(pts[a].lx, pts[a].ly);
+      for (let k = a+1; k <= c; k++) ctx.lineTo(pts[k].lx, pts[k].ly);
+      for (let k = c; k >= a; k--)   ctx.lineTo(pts[k].lix, pts[k].liy);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(pts[a].rx, pts[a].ry);
+      for (let k = a+1; k <= c; k++) ctx.lineTo(pts[k].rx, pts[k].ry);
+      for (let k = c; k >= a; k--)   ctx.lineTo(pts[k].rix, pts[k].riy);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  /* the lips of a hole get a bright bar, so a jump reads from a long way out */
+  ctx.fillStyle = C.lipEdge;
+  const cap = (k) => {
+    const w = Math.max(2.5, 9 * pts[k].sc);
+    ctx.beginPath();
+    ctx.moveTo(pts[k].lx, pts[k].ly);      ctx.lineTo(pts[k].rx, pts[k].ry);
+    ctx.lineTo(pts[k].rx, pts[k].ry + w);  ctx.lineTo(pts[k].lx, pts[k].ly + w);
+    ctx.closePath(); ctx.fill();
+  };
+  if (i0 > 0) cap(i0);
+  if (i1 < pts.length - 1) cap(i1);
+}
+
+/* Lattice over the ribbon. A point a fraction t across the track projects to
+   exactly lerp(leftEdge, rightEdge, t), because the surface is planar across its
+   width, so this costs nothing but path building. */
+function drawTrackGrid(runs){
+  if (!K.GRID_LONG) return;
+  ctx.beginPath();
+  for (let r = 0; r < runs.length; r += 2){
+    const i0 = runs[r], i1 = runs[r+1];
+    for (let g = 1; g < K.GRID_LONG; g++){
+      const t = g / K.GRID_LONG;
+      for (let k = i0; k <= i1; k++){
+        const p = pts[k];
+        const x = p.lx + (p.rx - p.lx) * t, y = p.ly + (p.ry - p.ly) * t;
+        if (k === i0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+    }
+    for (let k = i0 + 1; k <= i1; k++){
+      if (pts[k].band === pts[k-1].band) continue;   // one rung per colour band
+      ctx.moveTo(pts[k].lx, pts[k].ly);
+      ctx.lineTo(pts[k].rx, pts[k].ry);
+    }
+  }
+  glowStroke(C.grid, C.gridGlow, K.GRID_W, K.GRID_A);
+
+  /* a bright line where the lip meets the deck, so the edge reads as an edge
+     rather than a flat band of colour */
+  ctx.beginPath();
+  for (let r = 0; r < runs.length; r += 2){
+    const i0 = runs[r], i1 = runs[r+1];
+    for (let k = i0; k <= i1; k++){
+      if (k === i0) ctx.moveTo(pts[k].lix, pts[k].liy); else ctx.lineTo(pts[k].lix, pts[k].liy);
+    }
+    for (let k = i0; k <= i1; k++){
+      if (k === i0) ctx.moveTo(pts[k].rix, pts[k].riy); else ctx.lineTo(pts[k].rix, pts[k].riy);
+    }
+  }
+  glowStroke(C.lipEdge, C.lip, K.GRID_W * 1.3, K.LIP_GLOW);
+}
+
+function drawRibbon(){
+  if (pts.length < 2) return;
+  /* Solid stretches are collected first and drawn far to near as well. Fixing
+     the order inside a run but leaving the runs themselves near-first still lets
+     the track beyond a hole paint over the lip in front of it. */
+  const runs = [];
+  let i = 0;
+  while (i < pts.length){
+    while (i < pts.length && !pts[i].solid) i++;
+    if (i >= pts.length) break;
+    let j = i;
+    while (j + 1 < pts.length && pts[j+1].solid) j++;
+    if (j > i) runs.push(i, j);
+    i = j + 1;
+  }
+  for (let r = runs.length - 2; r >= 0; r -= 2) ribbonRun(runs[r], runs[r+1]);
+  drawTrackGrid(runs);
+}
+
+function oseg(x0,y0,x1,y1){ obstSeg.push(x0,y0,x1,y1); }
+function quadEdges(ax,ay,bx,by,cx2,cy2,dx,dy){
+  oseg(ax,ay,bx,by); oseg(bx,by,cx2,cy2); oseg(cx2,cy2,dx,dy); oseg(dx,dy,ax,ay);
+}
+function drawBox(o, faceCol, topCol, outline){
+  const zn = o.z - K.OBST_D*0.5, zf = o.z + K.OBST_D*0.5;
+  if (zn - camZ < 16) return;
+  const pn = D.FOC / (zn - camZ), pf = D.FOC / (zf - camZ);
+  const bn = surfaceY(zn, o.x), bf = surfaceY(zf, o.x);
+  const l = o.x - o.hw, r = o.x + o.hw;
+  obstSpan(o, SPAN);
+  const y0 = SPAN[0], y1 = SPAN[1];
+
+  /* the floor telegraph: a patch that says where this thing lives, always on */
+  if (o.kind >= 2){
+    const f = riseFrac(o);
+    ctx.globalAlpha = K.OBST_MARK_A + (K.OBST_MARK_B - K.OBST_MARK_A) * f;
+    ctx.fillStyle = o.kind === 2 ? C.obstRise : C.obstDrop;
+    ctx.beginPath();
+    ctx.moveTo(projX(l,bf,pf), projY(l,bf,pf));
+    ctx.lineTo(projX(r,bf,pf), projY(r,bf,pf));
+    ctx.lineTo(projX(r,bn,pn), projY(r,bn,pn));
+    ctx.lineTo(projX(l,bn,pn), projY(l,bn,pn));
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    if (y1 - y0 < 2) return;
+  }
+
+  ctx.fillStyle = topCol;
+  ctx.beginPath();
+  ctx.moveTo(projX(l,bf+y1,pf), projY(l,bf+y1,pf));
+  ctx.lineTo(projX(r,bf+y1,pf), projY(r,bf+y1,pf));
+  ctx.lineTo(projX(r,bn+y1,pn), projY(r,bn+y1,pn));
+  ctx.lineTo(projX(l,bn+y1,pn), projY(l,bn+y1,pn));
+  ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle = faceCol;
+  ctx.beginPath();
+  ctx.moveTo(projX(l,bn+y1,pn), projY(l,bn+y1,pn));
+  ctx.lineTo(projX(r,bn+y1,pn), projY(r,bn+y1,pn));
+  ctx.lineTo(projX(r,bn+y0,pn), projY(r,bn+y0,pn));
+  ctx.lineTo(projX(l,bn+y0,pn), projY(l,bn+y0,pn));
+  ctx.closePath(); ctx.fill();
+
+  /* the filament. Without it a black block on a black deck is nothing at all. */
+  if (!outline){
+    quadEdges(projX(l,bn+y1,pn), projY(l,bn+y1,pn), projX(r,bn+y1,pn), projY(r,bn+y1,pn),
+              projX(r,bn+y0,pn), projY(r,bn+y0,pn), projX(l,bn+y0,pn), projY(l,bn+y0,pn));
+    quadEdges(projX(l,bf+y1,pf), projY(l,bf+y1,pf), projX(r,bf+y1,pf), projY(r,bf+y1,pf),
+              projX(r,bn+y1,pn), projY(r,bn+y1,pn), projX(l,bn+y1,pn), projY(l,bn+y1,pn));
+  }
+
+  if (outline){ ctx.strokeStyle = outline; ctx.lineWidth = Math.max(1.6, 2.4*pn); ctx.stroke(); }
+}
+
+function drawObstacles(){
+  const far = camZ + D.VIEW_Z;
+  const vis = [];
+  for (let i = 0; i < obstacles.length; i++){
+    const o = obstacles[i];
+    if (o.dead || o.z < camZ + 20 || o.z > far) continue;
+    vis.push(o);
+  }
+  vis.sort((a,b) => b.z - a.z);
+  /* Grouped by kind so each colour of filament is one batched pass. Sliding,
+     rising and dropping blocks each get their own hue, which is now the only way
+     to tell them apart: the faces are all the same near-black. */
+  const kinds = [[0,C.obstEdge],[1,C.obstMove],[2,C.obstRise],[3,C.obstDrop]];
+  for (let ki = 0; ki < kinds.length; ki++){
+    obstSeg.length = 0;
+    for (let i = 0; i < vis.length; i++){
+      if (vis[i].kind !== kinds[ki][0]) continue;
+      drawBox(vis[i], C.obstFace, C.obstTop, null);
+    }
+    if (!obstSeg.length) continue;
+    ctx.beginPath();
+    for (let i = 0; i < obstSeg.length; i += 4){
+      ctx.moveTo(obstSeg[i], obstSeg[i+1]);
+      ctx.lineTo(obstSeg[i+2], obstSeg[i+3]);
+    }
+    glowStroke(kinds[ki][1], kinds[ki][1], K.GRID_W * 1.35, K.OBST_EDGE_A);
+  }
+  obstSeg.length = 0;
+}
+
+function drawSave(){
+  if (!save.live) return;
+  const dz = save.z - camZ;
+  if (dz < 30) return;
+  const sc = D.FOC / dz;
+  const base = surfaceY(save.z, save.x);
+  const bx = projX(save.x, base + K.SAVE_R*1.5, sc);
+  const by = projY(save.x, base + K.SAVE_R*1.5, sc);
+  const tx = projX(save.x, base + 320, sc), ty = projY(save.x, base + 320, sc);
+  const r  = K.SAVE_R * sc;
+
+  ctx.strokeStyle = 'rgba(255,198,61,0.22)';
+  ctx.lineWidth = Math.max(2.4, 5*sc);
+  ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(bx,by); ctx.stroke();
+
+  const wob = 0.55 + 0.45 * Math.abs(Math.cos(save.spin));
+  ctx.fillStyle = C.save;
+  ctx.beginPath();
+  ctx.moveTo(bx, by-r); ctx.lineTo(bx+r*wob, by);
+  ctx.lineTo(bx, by+r); ctx.lineTo(bx-r*wob, by);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.arc(bx, by, r*1.55, 0, Math.PI*2);
+  glowStroke(C.save, C.save, Math.max(1.4, 2.2*sc), 0.9);
+}
+
+function drawShards(){
+  for (let i = 0; i < shards.length; i++){
+    const s = shards[i];
+    const dz = s.z - camZ;
+    if (dz < 20) continue;
+    const sc = D.FOC / dz;
+    ctx.globalAlpha = clamp(s.life / 0.55, 0, 1);
+    ctx.fillStyle = C.save;
+    const w = Math.max(2, 7*sc);
+    ctx.fillRect(projX(s.x,s.y,sc) - w*0.5, projY(s.x,s.y,sc) - w*0.5, w, w);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* A fading silhouette of the ball rather than a wall of light: full width where
+   it meets the ball, shrinking and dimming to nothing behind, which is what the
+   reference actually shows trailing a cycle. Drawn oldest first so the newest
+   ghosts sit on top and the streak reads solid at the ball. */
+function drawTrail(){
+  const n = P.trail.length;
+  if (n < 2) return;
+  ctx.fillStyle = C.player;
+  for (let i = 0; i < n; i++){
+    const t  = P.trail[i];
+    const dz = t.z - camZ;
+    if (dz < 20) continue;
+    const sc = D.FOC / dz;
+    const f  = i / (n - 1);                       // 0 oldest, 1 newest
+    const rr = K.BALL_R * sc * (K.TRAIL_TAPER + (1 - K.TRAIL_TAPER) * f);
+    const y  = surfaceY(t.z, t.x) + t.h;
+    ctx.globalAlpha = K.TRAIL_A * f * f;
+    ctx.beginPath();
+    ctx.arc(projX(t.x, y, sc), projY(t.x, y, sc) - K.BALL_R * sc, rr, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPlayer(bright){
+  const dz = rZ - camZ;
+  if (dz < 24) return;
+  const sc   = D.FOC / dz;
+  /* Always drawn from the banked surface. Physics measures the arc against the
+     smooth plane, but switching the DRAWN base between the two at launch jumped
+     the ball by the whole bank term in one frame. */
+  const surf = surfaceY(rZ, rX);
+  const py   = surf + P.fallY + rH;
+  const r    = K.BALL_R * sc;
+
+  /* the shadow stays on the floor, so height reads while airborne */
+  if (P.fallY === 0 && !gapAt(rZ)){
+    ctx.globalAlpha = 0.26 * (P.air ? 0.55 : 1);
+    ctx.fillStyle = '#3a2a2a';
+    ctx.beginPath();
+    ctx.ellipse(projX(rX,surf,sc), projY(rX,surf,sc), r*1.15, r*0.42, roll, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  const blink = (P.iframes > 0 && !bright) ? (Math.floor(P.iframes*18) % 2 === 0) : false;
+  if (blink) return;
+
+  const cx0 = projX(rX, py, sc), cy0 = projY(rX, py, sc) - r;
+  const sq  = P.squash > 0 ? 1 + K.LAND_SQUASH * 2 * (P.squash / K.LAND_SQUASH) : 1;
+
+  ctx.save();
+  ctx.translate(cx0, cy0);
+  ctx.rotate(roll);
+  ctx.scale(sq, 1/sq);
+
+  /* Solid black, one neon ring. Nothing spins. */
+  ctx.strokeStyle = C.player;
+  ctx.globalAlpha = K.BALL_HALO_A;
+  ctx.lineWidth = r * 0.7;
+  ctx.beginPath(); ctx.arc(0, 0, r * 1.28, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = C.playerBody;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+
+  ctx.beginPath(); ctx.arc(0, 0, r * K.BALL_RING, 0, Math.PI*2);
+  glowStroke(C.player, C.player, Math.max(1.3, r * 0.22), 0.95);
+
+  if (P.save){
+    ctx.strokeStyle = C.save;
+    ctx.lineWidth = Math.max(2, 3.2*sc);
+    ctx.globalAlpha = 0.65 + 0.35 * Math.sin(performance.now() * 0.006);
+    ctx.beginPath(); ctx.arc(0,0,r*1.75,0,Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  if (P.burst > 0){
+    const k = 1 - P.burst / K.SAVE_BURST;
+    ctx.strokeStyle = C.save; ctx.globalAlpha = clamp(1-k,0,1);
+    ctx.lineWidth = Math.max(2, 4*sc*(1-k));
+    ctx.beginPath(); ctx.arc(0,0,r*(1.75 + k*3.2),0,Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+function markCrossing(){
+  const dz = run.overZ - camZ;
+  if (dz < 20) return;
+  const sc = D.FOC / dz, y = surfaceY(run.overZ, run.overX);
+  ctx.fillStyle = '#ffffff';
+  const w = Math.max(4, 14*sc);
+  ctx.fillRect(projX(run.overX,y,sc) - w*0.5, projY(run.overX,y,sc) - w*0.5, w, w*0.55);
+}
+
+function drawDeathFx(){
+  ctx.fillStyle = 'rgba(7,5,15,0.60)';
+  ctx.fillRect(-40, -40, W+80, H+80);
+
+  if (run.overKind === 'hit' && run.overObst){
+    ctx.globalAlpha = 0.72 + 0.28 * Math.sin(performance.now()*0.014);
+    drawBox(run.overObst, C.die, '#ff7a84', '#ffffff');
+    ctx.globalAlpha = 1;
+    const o = run.overObst, zn = o.z - K.OBST_D*0.5;
+    if (zn - camZ > 16){
+      const pn = D.FOC / (zn - camZ), bn = surfaceY(zn, run.overX);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(3, 9*pn);
+      ctx.beginPath();
+      ctx.moveTo(projX(run.overX, bn+K.OBST_H, pn), projY(run.overX, bn+K.OBST_H, pn));
+      ctx.lineTo(projX(run.overX, bn, pn),          projY(run.overX, bn, pn));
+      ctx.stroke();
+    }
+  } else if (run.overKind === 'fall' && pts.length > 1){
+    const n = pts.length - 1, side = run.overSide;
+    ctx.fillStyle = C.die; ctx.globalAlpha = 0.90;
+    ctx.beginPath();
+    if (side > 0){
+      ctx.moveTo(pts[0].rx, pts[0].ry);
+      for (let k=1;k<=n;k++) ctx.lineTo(pts[k].rx, pts[k].ry);
+      for (let k=n;k>=0;k--) ctx.lineTo(pts[k].rx + (pts[k].rix - pts[k].rx)*2.1,
+                                        pts[k].ry + (pts[k].riy - pts[k].ry)*2.1);
+    } else {
+      ctx.moveTo(pts[0].lx, pts[0].ly);
+      for (let k=1;k<=n;k++) ctx.lineTo(pts[k].lx, pts[k].ly);
+      for (let k=n;k>=0;k--) ctx.lineTo(pts[k].lx + (pts[k].lix - pts[k].lx)*2.1,
+                                        pts[k].ly + (pts[k].liy - pts[k].ly)*2.1);
+    }
+    ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+    markCrossing();
+  } else if (run.overKind === 'gap' && run.overGap){
+    const g = run.overGap;
+    ctx.fillStyle = C.die; ctx.globalAlpha = 0.50;
+    for (let k = 0; k < pts.length-1; k++){
+      if (pts[k].z < g.z0 - K.SLICE_DZ || pts[k].z > g.z1 + K.SLICE_DZ) continue;
+      ctx.beginPath();
+      ctx.moveTo(pts[k].lx, pts[k].ly);       ctx.lineTo(pts[k].rx, pts[k].ry);
+      ctx.lineTo(pts[k+1].rx, pts[k+1].ry);   ctx.lineTo(pts[k+1].lx, pts[k+1].ly);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    markCrossing();
+  }
+  drawPlayer(true);
+}
+
+/* ---------- HUD ---------- */
+const FONT = 'system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
+function text(s, x, y, size, weight, col, align){
+  ctx.font = weight + ' ' + size + 'px ' + FONT;
+  ctx.textAlign = align || 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = col;
+  ctx.fillText(s, x, y);
+}
+
+/* the in-run controls, drawn last so nothing overlaps them */
+function drawRunButtons(){
+  const s = Math.min(1, W/420);
+  const r = K.BTN_R*s, m = K.BTN_M*s, gap = K.BTN_GAP*s;
+  const y = H - m - r;
+  UI.pause = [m, y - r, r*2, r*2];
+  UI.skip  = [W - m - r*2, y - r, r*2, r*2];
+  UI.mute  = [W - m - r*4 - gap, y - r, r*2, r*2];
+  ctx.globalAlpha = K.BTN_A;
+  ctx.strokeStyle = C.hud; ctx.lineWidth = 1.6*s;
+  ctx.fillStyle = C.hud;
+
+  const px = m + r;
+  ctx.beginPath(); ctx.arc(px, y, r, 0, Math.PI*2); ctx.stroke();
+  if (paused){
+    ctx.beginPath();
+    ctx.moveTo(px - r*0.26, y - r*0.34);
+    ctx.lineTo(px + r*0.38, y);
+    ctx.lineTo(px - r*0.26, y + r*0.34);
+    ctx.closePath(); ctx.fill();
+  } else {
+    ctx.fillRect(px - r*0.30, y - r*0.34, r*0.22, r*0.68);
+    ctx.fillRect(px + r*0.08, y - r*0.34, r*0.22, r*0.68);
+  }
+
+  /* A plain X, dimmed when the music was off, gave no way back: it read as a
+     disabled control rather than as the switch that turns the music on again.
+     This shows the STATE instead, the way every mute button does, and stays at
+     full weight in both. */
+  const mx = W - m - r*3 - gap;
+  const q  = r*0.32;
+  ctx.beginPath(); ctx.arc(mx, y, r, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(mx - q*1.05, y - q*0.34);
+  ctx.lineTo(mx - q*0.35, y - q*0.34);
+  ctx.lineTo(mx + q*0.30, y - q*0.95);
+  ctx.lineTo(mx + q*0.30, y + q*0.95);
+  ctx.lineTo(mx - q*0.35, y + q*0.34);
+  ctx.lineTo(mx - q*1.05, y + q*0.34);
+  ctx.closePath(); ctx.fill();
+  if (audioOn()){
+    ctx.beginPath(); ctx.arc(mx + q*0.55, y, q*0.78, -0.85, 0.85); ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(mx + q*0.66, y - q*0.52); ctx.lineTo(mx + q*1.32, y + q*0.52);
+    ctx.moveTo(mx + q*1.32, y - q*0.52); ctx.lineTo(mx + q*0.66, y + q*0.52);
+    ctx.stroke();
+  }
+
+  const sx = W - m - r;
+  ctx.beginPath(); ctx.arc(sx, y, r, 0, Math.PI*2); ctx.stroke();
+  for (let i = 0; i < 2; i++){
+    const o = -r*0.34 + i*r*0.36;
+    ctx.beginPath();
+    ctx.moveTo(sx + o, y - r*0.32);
+    ctx.lineTo(sx + o + r*0.30, y);
+    ctx.lineTo(sx + o, y + r*0.32);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.fillRect(sx + r*0.40, y - r*0.32, r*0.13, r*0.64);
+  ctx.globalAlpha = 1;
+}
+
+function drawPaused(){
+  ctx.fillStyle = 'rgba(4,3,2,0.62)';
+  ctx.fillRect(-40,-40,W+80,H+80);
+  const s = Math.min(1, W/420);
+  textTracked('PAUSED', HALFW, H*0.42, 26*s, '700', C.cream, 6*s);
+  text('tap anywhere to carry on', HALFW, H*0.42 + 26*s, 12*s, '400',
+       'rgba(255,255,255,0.72)');
+}
+
+function drawHUD(){
+  const s = H < 620 ? 0.82 : 1;
+  text(String(score()), HALFW, 52*s, 40*s, '300', C.hud);
+
+  /* the multiplier is the whole point of the brake: you can watch it fall */
+  const cm = chainMul();
+  ctx.globalAlpha = 0.75;
+  text('x' + (scoreMul()*cm).toFixed(1), HALFW, 96*s, 19*s, '500', C.lip);
+  ctx.globalAlpha = 1;
+  if (run.chain > 0){
+    const hot = clamp(run.chainT / K.NEAR_HOLD, 0, 1);
+    ctx.globalAlpha = 0.35 + 0.65*hot;
+    text('THREADED ' + run.chain, HALFW, 117*s, 12.5*s, '600', C.save);
+    ctx.globalAlpha = 1;
+  }
+
+  if (run.tierT > 0){
+    ctx.globalAlpha = clamp(run.tierT / K.TIER_FLASH, 0, 1);
+    text(TIER_NAME[run.tier] || '', HALFW, H*0.30, 30*s, '200', C.lip);
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.globalAlpha = 0.45;
+    text(TIER_NAME[run.tier] || '', HALFW, H - 58*s, 11*s, '500', C.hud);
+    ctx.globalAlpha = 1;
+  }
+  if (run.daily)
+    text('daily', HALFW, 74*s, 13*s, '500', C.lip);
+  else if (best > 0)
+    text('best ' + best, HALFW, 74*s, 13*s, '400', 'rgba(239,232,220,0.5)');
+  if (K.SAVE_ON){
+    const cx0 = HALFW, cy0 = H - 34*s, r = 11*s;
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = P.save ? C.save : 'rgba(239,232,220,0.22)';
+    ctx.beginPath(); ctx.arc(cx0, cy0, r, 0, Math.PI*2); ctx.stroke();
+    if (P.save){ ctx.fillStyle = C.save; ctx.beginPath(); ctx.arc(cx0,cy0,r*0.46,0,Math.PI*2); ctx.fill(); }
+  }
+}
+
+function drawPerf(){
+  if (!perf.show) return;
+  const lines = [
+    perf.avg.toFixed(1)+' ms avg   '+perf.worst.toFixed(1)+' ms worst',
+    (1000/Math.max(perf.avg,0.001)).toFixed(0)+' fps   '+perf.steps+' steps   dpr '+DPR.toFixed(2)
+      +'   q'+qual.toFixed(2),
+    secAt(P.z).type + '   tilt ' + sampleTrack(P.z).bank.toFixed(2) + (P.air ? '   AIR' : ''),
+    'look ' + lookNow().toFixed(2) + 's   ' + speedNow().toFixed(0) + ' u/s   d' + K.DIFFICULTY.toFixed(2),
+    'seed '+(run?run.seed:0)+'   F to hide'
+  ];
+  ctx.font = '400 11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(0,0,0,0.42)';
+  ctx.fillRect(8, 8, 220, 14*lines.length + 8);
+  ctx.fillStyle = perf.worst > 22 ? '#ff9a6b' : 'rgba(239,232,220,0.78)';
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], 14, 22 + i*14);
+}
+
+/* Sliders drawn straight onto the canvas. Every row is a rect; a tap or drag
+   anywhere along it sets the value from the x position. */
+function drawSettings(){
+  const g = setGeom(), s = g.s;
+
+  /* The arena above the panel is left alone. Dimming the whole screen, which is
+     what this did before, meant you could not see what any of these did until
+     you started a run, by which point it was too late to judge. */
+  const fade = 26*s;
+  for (let i = 0; i < 8; i++){
+    ctx.fillStyle = 'rgba(2,6,10,' + (K.SET_SCRIM * (i+1)/8 * 0.5).toFixed(3) + ')';
+    ctx.fillRect(-40, g.top - fade + fade*i/8, W+80, fade/8 + 1);
+  }
+  ctx.fillStyle = 'rgba(2,6,10,' + K.SET_SCRIM + ')';
+  ctx.fillRect(-40, g.top, W+80, H - g.top + 40);
+  ctx.strokeStyle = 'rgba(205,243,255,0.10)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, g.top); ctx.lineTo(W, g.top); ctx.stroke();
+
+  text('SETTINGS', HALFW, g.top + 21*s, 15*s, '500', C.hud);
+  text('changes show above as you make them', HALFW, g.top + 21*s + 15*s, 10.5*s,
+       '400', 'rgba(205,243,255,0.38)');
+
+  let y = g.firstY;
+  for (let i = 0; i < OPT.length; i++){
+    const e = OPT[i];
+    /* the whole row is the target, and the row is now tall enough to hit */
+    UI['opt'+i] = [0, y - g.rowH*0.5, W, g.rowH];
+    const t = (e.v - e.min) / (e.max - e.min);
+    const kx = g.barX + g.barW*t;
+    /* a narrow strip behind the row, so the type reads over whatever the arena
+       happens to be doing without darkening the arena itself */
+    ctx.fillStyle = 'rgba(2,6,10,' + (setDrag === i ? 0.74 : K.SET_LABEL_BG) + ')';
+    ctx.fillRect(0, y - g.rowH*0.42, W, g.rowH*0.84);
+    ctx.lineWidth = 5*s;
+    ctx.strokeStyle = 'rgba(205,243,255,0.16)';
+    ctx.beginPath(); ctx.moveTo(g.barX, y); ctx.lineTo(g.barX+g.barW, y); ctx.stroke();
+    ctx.strokeStyle = C.lip;
+    ctx.beginPath(); ctx.moveTo(g.barX, y); ctx.lineTo(kx, y); ctx.stroke();
+    const kr = K.SET_KNOB*s * (setDrag === i ? 1.3 : 1);
+    ctx.fillStyle = 'rgba(2,6,10,0.9)';
+    ctx.beginPath(); ctx.arc(kx, y, kr*1.15, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = C.hud;
+    ctx.beginPath(); ctx.arc(kx, y, kr, 0, Math.PI*2); ctx.fill();
+    text(e.label, g.barX - 14*s, y + 4.5*s, 12.5*s, '400',
+         setDrag === i ? C.hud : 'rgba(205,243,255,0.80)', 'right');
+    y += g.rowH;
+  }
+
+  const bw = 118*s, bh = 32*s, gap = 10*s;
+  const by = H - bh - K.SET_FOOT*s;
+  UI.setReset = [HALFW - bw - gap*0.5, by, bw, bh];
+  UI.setDone  = [HALFW + gap*0.5,      by, bw, bh];
+  const btns = [['setReset','reset','rgba(205,243,255,0.55)'],['setDone','done',C.lip]];
+  for (let bi = 0; bi < btns.length; bi++){
+    const r = UI[btns[bi][0]];
+    ctx.strokeStyle = btns[bi][2]; ctx.lineWidth = 1.5;
+    ctx.strokeRect(r[0], r[1], r[2], r[3]);
+    text(btns[bi][1], r[0]+r[2]*0.5, r[1]+r[3]*0.66, 13*s, '500', btns[bi][2]);
+  }
+}
+
+/* Letter-by-letter so the wordmark can be tracked out wide, which is most of
+   what makes a title look designed rather than typed. Canvas letterSpacing is
+   not reliable across the browsers this has to run on. */
+function textTracked(str, cx, y, size, weight, col, track, alpha){
+  ctx.font = weight + ' ' + size + 'px ' + FONT;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  let w = -track;
+  for (let i = 0; i < str.length; i++) w += ctx.measureText(str[i]).width + track;
+  let x = cx - w * 0.5;
+  ctx.fillStyle = col;
+  ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+  for (let i = 0; i < str.length; i++){
+    ctx.fillText(str[i], x, y);
+    x += ctx.measureText(str[i]).width + track;
+  }
+  ctx.globalAlpha = 1;
+}
+/* bloom on text, the same trick as the line work: repeats at small offsets */
+function textGlow(str, cx, y, size, weight, col, track){
+  for (let i = 0; i < 4; i++){
+    const a = i * Math.PI * 0.5, d = size * 0.045;
+    textTracked(str, cx + Math.cos(a)*d, y + Math.sin(a)*d, size, weight, col, track, K.TITLE_GLOW);
+  }
+  textTracked(str, cx, y, size, weight, col, track, 1);
+}
+function uiButton(key, x, y, w, h, label, size, primary){
+  UI[key] = [x, y, w, h];
+  ctx.beginPath(); ctx.rect(x, y, w, h);
+  /* The primary button is amber and stays that way. Everything else is white:
+     the warm tints read beautifully against the bloom in the middle of the
+     screen and then disappeared against the black at the edges, and the borders
+     were the worst of it at 2.1 to 1. */
+  if (primary) glowStroke(C.warm, C.warm, 2, 0.95);
+  else { ctx.strokeStyle = 'rgba(255,255,255,0.62)'; ctx.lineWidth = 1.6; ctx.stroke(); }
+  textTracked(label, x + w*0.5, y + h*0.645, size, primary ? '600' : '500',
+              primary ? C.warm : '#ffffff', size*0.10);
+}
+
+function drawTitle(){
+  const s  = Math.min(1, W/420);
+  const bw = Math.min(W*0.78, 300*s), bx = HALFW - bw*0.5;
+  const hz = H * K.TITLE_HZ;
+
+  /* Knock the arena back, then light it the way the card is lit: a broad amber
+     bloom rising off a horizon, and a thin warm line across it. The gradient is
+     built once and cached, because the title is static and rebuilding one every
+     frame is exactly the sort of thing that shows on a slow machine. */
+  ctx.fillStyle = 'rgba(4,3,2,' + K.TITLE_SCRIM + ')';
+  ctx.fillRect(-40, -40, W+80, H+80);
+
+  const key = W + 'x' + H;
+  if (titleBloomKey !== key){
+    const r = W * K.TITLE_BLOOM;
+    const g2 = ctx.createRadialGradient(HALFW, hz, 0, HALFW, hz, r);
+    g2.addColorStop(0,    'rgba(255,150,40,' + K.TITLE_BLOOM_A + ')');
+    g2.addColorStop(0.16, 'rgba(240,120,30,' + (K.TITLE_BLOOM_A*0.42).toFixed(3) + ')');
+    g2.addColorStop(0.42, 'rgba(190,80,20,'  + (K.TITLE_BLOOM_A*0.13).toFixed(3) + ')');
+    g2.addColorStop(1,    'rgba(120,50,12,0)');
+    titleBloom = g2; titleBloomKey = key;
+  }
+  ctx.fillStyle = titleBloom;
+  ctx.fillRect(-40, -40, W+80, H+80);
+
+  ctx.strokeStyle = C.warm;
+  ctx.globalAlpha = 0.30;
+  ctx.lineWidth = Math.max(1, 1.2*s);
+  ctx.beginPath(); ctx.moveTo(0, hz); ctx.lineTo(W, hz); ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  let y = H*0.17;
+  const mark = GAME_NAME.charAt(0) + GAME_NAME.slice(1).toLowerCase();
+  textGlow(mark, HALFW, y, 60*s, '800', C.cream, K.TITLE_TRACK * 60*s);
+  y += 14*s;
+  ctx.beginPath();
+  ctx.moveTo(HALFW - bw*0.42, y); ctx.lineTo(HALFW + bw*0.42, y);
+  glowStroke(C.warm, C.warm, 1.2, 0.80);
+
+  /* what the daily track is, said plainly, because nobody should have to guess */
+  /* Two thoughts, and the spacing has to say so. Which track it is and how long
+     it lasts belong together, so the clock sits tight under the number at 16.
+     What the daily mode actually is, is a separate point, so it starts after 25,
+     comfortably more than the 15 holding its own two lines together. Grouping by
+     gap size rather than by rule or colour keeps the block quiet. */
+  y += 40*s;
+  textTracked('TODAY: TRACK #' + dailyNumber(), HALFW, y, 15*s, '600', '#ffffff', 2.2*s);
+
+  y += 16*s;
+  /* 'italic 400' rather than '400': the helper drops this straight into the CSS
+     font shorthand, where style comes before weight. Get the order wrong and the
+     whole string is invalid, which canvas ignores silently, leaving whatever font
+     was set last. */
+  text(dailyCountdown(), HALFW, y, 11.5*s, 'italic 400', 'rgba(255,255,255,0.90)');
+
+  y += 25*s;
+  text('The same track for everyone in the world today.', HALFW, y, 11.5*s, '400',
+       'rgba(255,255,255,0.90)');
+  y += 15*s;
+  text('A new one every day. Compare your score with anyone.', HALFW, y, 11.5*s, '400',
+       'rgba(255,255,255,0.90)');
+
+  y += 24*s;
+  const bh = 40*s;
+  uiButton('play', bx, y, bw, bh, "PLAY TODAY'S TRACK", 13*s, true);
+  y += bh + 9*s;
+  uiButton('random', bx, y, bw, 32*s, 'RANDOM TRACK', 11.5*s, false);
+  y += 32*s + 5*s;
+  text('a fresh layout right now, not scored against the world',
+       HALFW, y + 10*s, 10*s, '400', 'rgba(255,255,255,0.74)');
+
+  y += 24*s;
+  const hw2 = (bw - 8*s) * 0.5;
+  uiButton('settings', bx, y, hw2, 30*s, 'SETTINGS', 11*s, false);
+  uiButton('sound', bx + hw2 + 8*s, y, hw2, 30*s, audioOn() ? 'SOUND ON' : 'SOUND OFF', 11*s, false);
+
+  y += 30*s + 26*s;
+  text('Arrows and A/D, or drag your thumb anywhere on screen.',
+       HALFW, y, 10.5*s, '400', 'rgba(255,255,255,0.78)');
+  if (best > 0)
+    textTracked('BEST ' + best, HALFW, y + 18*s, 11*s, '500', 'rgba(255,255,255,0.92)', 2*s);
+}
+
+function drawDead(){
+  /* Same treatment as the splash: cream numeral with the wordmark's bloom, the
+     accent in amber tracked caps, body copy in white, and one amber button. It
+     used to have its own smaller, greyer, differently tracked set of styles and
+     read as a different screen from the one you had just come off. */
+  const s = Math.min(1, W/420);
+  let y = H*0.40;
+
+  textGlow(String(score()), HALFW, y, 68*s, '800', C.cream, K.TITLE_TRACK * 68*s);
+  y += 22*s;
+  const bw = Math.min(W*0.78, 300*s), bx = HALFW - bw*0.5;
+  ctx.beginPath();
+  ctx.moveTo(HALFW - bw*0.30, y); ctx.lineTo(HALFW + bw*0.30, y);
+  glowStroke(C.warm, C.warm, 1.2, 0.80);
+
+  const isBest = score() >= best && score() > 0;
+  y += 28*s;
+  textTracked(isBest ? 'NEW BEST' : 'BEST ' + best, HALFW, y, 14*s, '600',
+              isBest ? C.warm : 'rgba(255,255,255,0.72)', 2.2*s);
+
+  /* The cause of death and the running tally used to sit here. They were useful
+     to me while tuning and they are clutter to a player: the score, whether it
+     beat the last one, and how to go again is the whole of what this screen is
+     for. The diagnostics are still recorded, just not shown. */
+
+  /* What the score was set on. Short, and the only thing standing between a
+     daily leaderboard and somebody widening the path to three times normal. */
+  y += 20*s;
+  const dflt = optsAreDefault();
+  textTracked(runLabel().toUpperCase() + '  \u00b7  ' + (dflt ? 'UNCHANGED' : 'ADJUSTED'),
+              HALFW, y, 10*s, '500',
+              dflt ? 'rgba(255,255,255,0.54)' : 'rgba(255,180,90,0.78)', 1.6*s);
+
+  y += 26*s;
+  if (run.inputLock <= 0)
+    text('press anything to go again', HALFW, y, 11.5*s, '400',
+         'rgba(255,255,255,0.74)');
+
+  y += 16*s;
+  const gap = 8*s, half = (bw - gap) * 0.5;
+  uiButton('menu', bx, y, half, 38*s, 'HOME', 12*s, false);
+  uiButton('share', bx + half + gap, y, half, 38*s,
+           shareMsg > 0 ? 'COPIED' : 'SHARE', 12*s, true);
+  UI.settings = null;
+}
+
+function draw(){
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  /* Render between simulation ticks rather than snapping to the last one. Slope
+     runs physics at 50Hz with interpolation off on every rigidbody, so on a 60Hz
+     display the two beat against each other at 10Hz of visible judder and what
+     you see is up to 20ms stale. This costs three lerps. */
+  const a = clamp(acc / K.STEP, 0, 1);
+  rZ = P.pz + (P.z - P.pz) * a;
+  rX = P.px + (P.x - P.px) * a;
+  rH = P.ph + (P.h - P.ph) * a;
+  let shx = 0, shy = 0;
+  if (run && run.shake > 0.2){
+    shx = (Math.random()*2-1) * run.shake;
+    shy = (Math.random()*2-1) * run.shake;
+  }
+  ctx.save();
+  ctx.translate(shx, shy);
+
+  drawSky();
+
+  camZ = rZ - D.CAM_BACK;
+  const ct = sampleTrack(camZ);
+  /* The camera's height references the surface under the BALL, not the surface
+     under itself. The floor is banked and the track centre swings sideways fast,
+     so referencing its own position made the ball bob up to 47px a frame. This
+     is the bumpiness that survived flattening the track. Damping the camera made
+     it worse, because the ball rides the bank and any lag shows up as the ball
+     moving relative to the view. Only the airborne rise is damped, so a landing
+     does not snap. */
+  const tB = sampleTrack(rZ, TR2);
+  /* CAM_H above the floor beneath ITSELF, using its own elevation. Referencing
+     the elevation to the ball put the camera 178 units back from where it was
+     measuring, on ground 113 units higher, which left it 5 units above the floor
+     and drew the ball through the track. Only the BANK is taken from under the
+     ball, because that is the term that swings fast and the term the ball rides,
+     so the ball still sits still in frame. */
+  camRise += (rH * K.CAM_RISE - camRise) * (1 - Math.exp(-K.CAM_VSMOOTH * lastFt));
+  camY  = K.CAM_H + ct.y + tB.bank * (tB.cx - rX) + camRise;
+  roll  = -ct.bank * K.CAM_ROLL;
+  rollC = Math.cos(roll); rollS = Math.sin(roll);
+  /* The camera stays gravity-level. The track's vanishing point therefore sits
+     grade*FOCAL below the true horizon, which is what the eye reads as downhill.
+     CAM_PITCH_FOLLOW gives some of that back so a plunge stays on screen. */
+  hY = horizonY - ct.grade * D.FOC * K.CAM_PITCH_FOLLOW;
+
+  /* However far the horizon has been lifted from its nominal place is how far
+     the camera is looking down. Turn that into an actual rotation. projBase is
+     set so the eye-level horizon still lands exactly on hY, which keeps every
+     bit of framing already tuned, and the rotation is pure gain: verticals
+     converge and the ground reads as tilted rather than merely offset. */
+  const pt = (horizonY - hY) / D.FOC * K.CAM_TRUE_PITCH + K.CAM_PITCH_EXTRA;
+  const th = Math.atan(pt);
+  pitchC = Math.cos(th); pitchS = Math.sin(th);
+  projBase = hY + D.FOC * pt;
+
+  /* Keep the ball on screen, measured through the REAL projection rather than
+     predicted by a formula. The old clamp solved the un-rotated equations, which
+     stopped describing anything once the camera became a true rotation; it went
+     unnoticed only because the camera was low enough to hide it. Raising the
+     camera put the ball off the bottom of the screen. projY is linear in
+     projBase, so one pass is exact. */
+  const bT = sampleTrack(rZ, TR2);
+  const bY = projY(rX, bT.y + bT.bank * (bT.cx - rX) + rH, D.FOC / D.CAM_BACK);
+  const keepY = H * K.CAM_KEEP;
+  if (bY > keepY){ const shift = bY - keepY; projBase -= shift; hY -= shift; }
+
+  drawHorizon();
+  drawCity();
+  buildPts();
+  drawTunnels();
+  drawRibbon();
+  drawObstacles();
+
+  if (state !== 'title'){
+    drawSave();
+    drawTrail();
+    if (run.flashT > 0 && run.flashO) drawBox(run.flashO, '#fff3d0', '#ffffff', null);
+    drawShards();
+    drawSparks();
+    drawSpeedLines();
+    if (state === 'play') drawPlayer(false);
+  }
+  if (state === 'dying' || state === 'dead') drawDeathFx();
+
+  ctx.restore();
+
+  if (state === 'play'){ drawHUD(); drawRunButtons(); if (paused) drawPaused(); }
+  else if (setOpen)      drawSettings();
+  else if (state === 'title') drawTitle();
+  else if (state === 'dead')  drawDead();
+  drawPerf();
+}
+
+/* ==========================================================================
+   MUSIC
+
+   Synthesised, not streamed. The zero-external-requests rule has held since the
+   first session and it is not worth breaking for audio: a lo-fi hip hop loop is
+   a slow swung drum pattern, a jazzy chord every bar or two, a root note under
+   it, and a lot of filtering. All of that is cheaper to generate than to fetch.
+
+   It is also endless and never repeats exactly, which suits a game you put on to
+   zone out to. Four progressions, each in its own key and tempo, cycling, with
+   the pattern varying bar to bar from the same kind of seeded noise the track
+   generator uses.
+
+   Nothing here touches the simulation. If AudioContext is missing or blocked,
+   every entry point is a no-op and the game plays in silence.
+   ========================================================================== */
+const MU = {
+  MASTER: 0.085,          // overall level. Background, not foreground.
+  INT_TAU: 0.55,          // s of smoothing on intensity, so the music lifts with
+                          //   the run rather than snapping to it
+  INT_IDLE: 0.10          // where it sits on the title and after a death
+};
+/* ==========================================================================
+   MUSIC
+
+   Ten procedural tracks, still synthesised, still no audio assets and no
+   external requests. Every name is prefixed au or AU because the engine and the
+   game both wanted ctx, tick, start, draw, step, speed, kick and hat, and a
+   silent collision there would have been very hard to find.
+
+   One knob drives the lot: auSpeed, 0 to 1, taken from where the run currently
+   sits on its own speed curve. It opens the tone filter, pushes the saturation,
+   lifts the delay feedback, brings the pad and lead up, adds an open hat and a
+   half-bar snare near the top, and stretches the tempo by up to a third. So the
+   music does not merely play under the game, it reports on it.
+   ========================================================================== */
+const AU_SCALES = {
+  minorPent:[0,3,5,7,10],
+  dorian:[0,2,3,5,7,9,10],
+  minor:[0,2,3,5,7,8,10],
+  phrygian:[0,1,3,5,7,8,10],
+  mixo:[0,2,4,5,7,9,10],
+  blues:[0,3,5,6,7,10]
+};
+const auMtof = m => 440*Math.pow(2,(m-69)/12);
+function auDeg(root,scale,d){
+  const s=AU_SCALES[scale], n=s.length;
+  const oct=Math.floor(d/n), i=((d%n)+n)%n;
+  return root+s[i]+12*oct;
+}
+// "x..x" -> [0,3].  Uppercase X = accent.
+function auParse(p){
+  const out=[];
+  for(let i=0;i<p.length;i++){
+    const c=p[i];
+    if(c==='x') out.push({s:i,v:0.75});
+    else if(c==='X') out.push({s:i,v:1});
+    else if(c==='o') out.push({s:i,v:0.4});   // ghost
+    else if(c==='O') out.push({s:i,v:0.6,open:true}); // open auHat
+  }
+  return out;
+}
+
+const AU_TRACKS=[
+{name:"Grease Pole",style:"Deep funk",bpm:96,swing:.18,root:40,scale:"minorPent",len:16,
+ auKick:"X..x..X.....x...",auSnare:"....X..o..o.X..o",auHat:"xoxoxOxoxoxoxOxo",
+ bass:[[0,0,3],[3,0,1],[6,-2,2],[8,2,1],[10,0,1],[11,1,2],[14,-3,2]],
+ chord:[[2,[0,2,4,6],2],[10,[1,3,5,7],2]],chordWave:"square",
+ lead:[[4,7,1],[5,6,1],[7,4,2],[12,7,1],[13,9,1],[15,7,1]],leadVoice:"auClav",
+ bassCfg:{wave:"sawtooth",cut:240,q:9},cutBase:520},
+
+{name:"Neon Boulevard",style:"Outrun synthwave",bpm:118,swing:0,root:45,scale:"minor",len:16,
+ auKick:"X...x...X...x...",auSnare:"....X.......X...",auHat:"..x...x...x...x.",auClap:"....X.......X...",
+ bass:[[0,0,2],[2,0,2],[4,0,2],[6,0,2],[8,-2,2],[10,-2,2],[12,-1,2],[14,-1,2]],
+ chord:[[0,[0,2,4],8],[8,[-2,0,2],8]],chordWave:"sawtooth",pad:true,
+ lead:[[0,7,1],[2,9,1],[4,11,1],[6,9,1],[8,7,1],[10,9,1],[12,11,1],[14,14,1]],leadVoice:"auPluck",
+ bassCfg:{wave:"sawtooth",cut:320,q:4},cutBase:700},
+
+{name:"Acid Descent",style:"Acid techno",bpm:130,swing:0,root:36,scale:"phrygian",len:16,
+ auKick:"X...X...X...X...",auSnare:"....x.......x...",auHat:"xxxxxxxxxxxxxxxx",auClap:"....X.......X...",
+ bass:[[0,0,1],[1,0,1],[3,7,1],[4,0,1],[6,3,1],[7,0,1],[9,10,1],[10,0,1],[12,5,1],[13,0,1],[15,7,1]],
+ acid:true,bassCfg:{wave:"sawtooth",cut:180,q:17},cutBase:340},
+
+{name:"Bad Circuit",style:"Electro 808",bpm:108,swing:.08,root:41,scale:"minor",len:16,
+ auKick:"X.....x...X.....",auSnare:"....X.......X...",auHat:"x.x.x.x.x.x.x.x.",auClap:"....X..o....X...",
+ bass:[[0,0,2],[2,7,1],[4,0,1],[6,-1,2],[8,0,2],[10,3,1],[12,-2,2],[14,0,1]],
+ chord:[[6,[0,2,4,6],1],[14,[-1,1,3,5],1]],chordWave:"square",
+ lead:[[3,12,1],[7,10,1],[11,12,1],[15,14,1]],leadVoice:"auClav",
+ bassCfg:{wave:"square",cut:260,q:7},cutBase:480},
+
+{name:"Chrome Slap",style:"Jazz funk",bpm:104,swing:.2,root:46,scale:"dorian",len:16,
+ auKick:"X..x....X.x.....",auSnare:"....X.oo..o.X.o.",auHat:"xoxoxoxoxoxoxoxo",
+ bass:[[0,0,2],[2,4,1],[3,2,1],[5,0,1],[6,-3,2],[8,0,1],[9,2,1],[11,4,1],[12,6,1],[14,4,2]],
+ chord:[[4,[2,4,6,8],3],[12,[0,2,4,6],3]],chordWave:"triangle",pad:true,
+ lead:[[6,9,1],[7,8,1],[9,6,2],[13,9,1],[14,11,1]],leadVoice:"auClav",
+ bassCfg:{wave:"sawtooth",cut:300,q:6},cutBase:820},
+
+{name:"Terminal Velocity",style:"Drum and bass",bpm:172,swing:0,root:38,scale:"minor",len:16,
+ auKick:"X.......X...x...",auSnare:"....X.......X..x",auHat:"xoxoxoxOxoxoxoxO",
+ bass:[[0,-7,4],[4,-7,2],[6,-5,2],[8,-7,4],[12,-3,2],[14,-7,2]],
+ chord:[[0,[0,2,4,6],6],[8,[-3,-1,1,3],6]],chordWave:"sawtooth",pad:true,
+ lead:[[10,11,1],[11,9,1],[15,7,1]],leadVoice:"auPluck",
+ bassCfg:{wave:"sine",cut:150,q:2},cutBase:600},
+
+{name:"Thumb Drive",style:"Electro boogie",bpm:114,swing:.12,root:41,scale:"dorian",len:16,
+ auKick:"X.....x.X.....x.",auSnare:"....X..o....X..o",auHat:"XoxoXoxOXoxoXoxO",auClap:"....X.......X...",
+ bass:[[0,0,1],[1,7,1],[3,0,1],[4,7,1],[6,0,1],[7,2,1],[8,0,1],[9,7,1],[11,0,1],[12,7,1],[14,0,1],[15,-2,1]],
+ chord:[[2,[0,2,4,6,8],1],[6,[-1,1,3,5],1],[10,[0,2,4,6,8],1],[13,[1,3,5,7],1]],chordWave:"sawtooth",
+ lead:[[5,7,1],[7,9,1],[12,11,1],[13,9,1],[15,7,1]],leadVoice:"auClav",
+ bassCfg:{wave:"sawtooth",cut:280,q:8},cutBase:600},
+
+{name:"Deep End",style:"Deep house",bpm:122,swing:.1,root:41,scale:"dorian",len:16,
+ auKick:"X...X...X...X...",auSnare:"....x.......x...",auHat:"..O...O...O...O.",auClap:"....X.......X...",
+ bass:[[0,-7,2],[3,-7,1],[6,-5,2],[8,-7,2],[11,-3,1],[14,-7,2]],
+ chord:[[2,[0,2,4,6],3],[6,[1,3,5,7],2],[10,[0,2,4,6],3],[14,[-1,1,3,5],2]],chordWave:"triangle",pad:true,
+ bassCfg:{wave:"sine",cut:200,q:3},cutBase:640},
+
+{name:"Glass Highway",style:"Italo disco",bpm:126,swing:0,root:45,scale:"minor",len:16,
+ auKick:"X...X...X...X...",auSnare:"....X.......X...",auHat:"..x.O.x...x.O.x.",auClap:"....x.......x...",
+ bass:[[0,-7,1],[2,0,1],[4,-7,1],[6,0,1],[8,-5,1],[10,2,1],[12,-6,1],[14,1,1]],
+ chord:[[0,[0,2,4],4],[8,[-1,1,3],4]],chordWave:"sawtooth",pad:true,
+ lead:[[0,7,1],[1,11,1],[2,14,1],[3,11,1],[4,7,1],[5,11,1],[6,14,1],[7,16,1],
+       [8,6,1],[9,10,1],[10,13,1],[11,10,1],[12,6,1],[13,10,1],[14,13,1],[15,15,1]],
+ leadVoice:"auPluck",bassCfg:{wave:"sawtooth",cut:340,q:5},cutBase:760},
+
+{name:"Hot Wire",style:"Breakbeat funk",bpm:108,swing:.17,root:38,scale:"dorian",len:16,
+ auKick:"X..X....x.X.....",auSnare:"....X.oo..x.X.o.",auHat:"xxoxOxxoxxoxOxxo",
+ bass:[[0,0,2],[3,0,1],[5,-2,2],[8,0,1],[9,3,1],[11,0,1],[12,-3,2],[15,0,1]],
+ chord:[[2,[1,3,5,7],1],[6,[0,2,4,6],1],[10,[1,3,5,7],1],[13,[0,2,4,6],1],[15,[0,2,4,6],1]],chordWave:"sawtooth",
+ lead:[[6,7,1],[7,9,2],[14,11,1],[15,12,1]],leadVoice:"auClav",
+ bassCfg:{wave:"sawtooth",cut:220,q:11},cutBase:700}
+];
+
+/* Engine state. These were declared between the track table and the functions in
+   the source file, and my first slice cut straight through them. */
+let AC=null, auNoise=null, auMaster=null, auDrum=null, auBass=null, auLead=null, auPad=null,
+    auTone=null, auShaper=null, auDelay=null, auFb=null;
+let auCur=0, auStep=0, auNextT=0, auSpeed=0;
+/* Every source the engine starts, so a track change can silence them. The
+   scheduler only looks 0.12s ahead, so the overlap was never queued notes: it
+   was long voices already ringing. A pad is held for most of its duration and
+   the chords run for seconds, so switching tracks left the old one sounding
+   over the new one. Wrapping the two factory methods catches every creation
+   site in one place rather than hoping eleven of them were all found. */
+const auLive = [];
+function auWatch(){
+  const co = AC.createOscillator.bind(AC), cb = AC.createBufferSource.bind(AC);
+  const hold = n => {
+    const st = n.stop.bind(n);
+    n.stop = function(t){ n._end = t; try { st(t); } catch(e){} };
+    auLive.push(n);
+    return n;
+  };
+  AC.createOscillator   = function(){ return hold(co()); };
+  AC.createBufferSource = function(){ return hold(cb()); };
+}
+function auSilence(){
+  if (!AC) return;
+  const t = AC.currentTime;
+  for (let i = 0; i < auLive.length; i++){
+    try { auLive[i].stop(t + 0.02); } catch(e){}
+  }
+  auLive.length = 0;
+  /* and duck the delay, or the old track echoes on through the new one */
+  if (auFb){
+    auFb.gain.cancelScheduledValues(t);
+    auFb.gain.setValueAtTime(0, t);
+  }
+}
+function auPrune(){
+  const t = AC.currentTime;
+  let w = 0;
+  for (let i = 0; i < auLive.length; i++){
+    const n = auLive[i];
+    if (n._end === undefined || n._end > t) auLive[w++] = n;
+  }
+  auLive.length = w;
+}
+
+function auBuild(){
+  if(AC) return;
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  const n=AC.sampleRate*2, b=AC.createBuffer(1,n,AC.sampleRate), d=b.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=Math.random()*2-1;
+  auNoise=b;
+
+  const lim=AC.createDynamicsCompressor();
+  lim.threshold.value=-8; lim.knee.value=4; lim.ratio.value=12;
+  lim.attack.value=.003; lim.release.value=.2;
+  lim.connect(AC.destination);
+
+  auMaster=AC.createGain(); auMaster.gain.value=.85; auMaster.connect(lim);
+
+  auShaper=AC.createWaveShaper(); auShaper.curve=auDrive(0); auShaper.oversample="2x";
+  auShaper.connect(auMaster);
+
+  auTone=AC.createBiquadFilter();
+  auTone.type="lowpass"; auTone.frequency.value=700; auTone.Q.value=.7;
+  auTone.connect(auShaper);
+
+  auDelay=AC.createDelay(1); auDelay.delayTime.value=.28;
+  auFb=AC.createGain(); auFb.gain.value=.28;
+  auDelay.connect(auFb); auFb.connect(auDelay); auDelay.connect(auTone);
+
+  auDrum=AC.createGain(); auDrum.gain.value=.9;  auDrum.connect(auMaster);
+  auBass=AC.createGain(); auBass.gain.value=.85; auBass.connect(auShaper);
+  auLead=AC.createGain(); auLead.gain.value=.5;  auLead.connect(auTone);
+  auPad =AC.createGain(); auPad.gain.value=.28;  auPad.connect(auTone);
+}
+function auDrive(k){
+  const n=1024,c=new Float32Array(n),a=k*90;
+  for(let i=0;i<n;i++){const x=i*2/n-1;c[i]=(1+a)*x/(1+a*Math.abs(x));}
+  return c;
+}
+
+/* --- voices --- */
+function auKick(t,v){
+  const o=AC.createOscillator(),g=AC.createGain();
+  o.type="sine";
+  o.frequency.setValueAtTime(165,t);
+  o.frequency.exponentialRampToValueAtTime(44,t+.07);
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(v,t+.004);
+  g.gain.exponentialRampToValueAtTime(.0008,t+.34);
+  o.connect(g).connect(auDrum); o.start(t); o.stop(t+.36);
+}
+function auSnare(t,v){
+  const s=AC.createBufferSource();s.buffer=auNoise;
+  const f=AC.createBiquadFilter();f.type="bandpass";f.frequency.value=1900;f.Q.value=.9;
+  const g=AC.createGain();
+  g.gain.setValueAtTime(v*.6,t); g.gain.exponentialRampToValueAtTime(.0008,t+.15);
+  s.connect(f).connect(g).connect(auDrum); s.start(t); s.stop(t+.18);
+  const o=AC.createOscillator(),og=AC.createGain();
+  o.type="triangle"; o.frequency.setValueAtTime(200,t);
+  o.frequency.exponentialRampToValueAtTime(125,t+.08);
+  og.gain.setValueAtTime(v*.45,t); og.gain.exponentialRampToValueAtTime(.0008,t+.1);
+  o.connect(og).connect(auDrum); o.start(t); o.stop(t+.12);
+}
+function auHat(t,v,open){
+  const s=AC.createBufferSource();s.buffer=auNoise;
+  const f=AC.createBiquadFilter();f.type="highpass";f.frequency.value=7800;
+  const g=AC.createGain(); const dur=open?.24:.042;
+  g.gain.setValueAtTime(v*.3,t); g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+  s.connect(f).connect(g).connect(auDrum); s.start(t); s.stop(t+dur+.02);
+}
+function auClap(t,v){
+  for(let i=0;i<3;i++){
+    const s=AC.createBufferSource();s.buffer=auNoise;
+    const f=AC.createBiquadFilter();f.type="bandpass";f.frequency.value=1250;f.Q.value=1.6;
+    const g=AC.createGain(); const st=t+i*.011;
+    g.gain.setValueAtTime(v*.4,st); g.gain.exponentialRampToValueAtTime(.0008,st+.05);
+    s.connect(f).connect(g).connect(auDrum); s.start(st); s.stop(st+.07);
+  }
+  const s=AC.createBufferSource();s.buffer=auNoise;
+  const f=AC.createBiquadFilter();f.type="bandpass";f.frequency.value=1050;f.Q.value=1.1;
+  const g=AC.createGain();
+  g.gain.setValueAtTime(v*.25,t+.03); g.gain.exponentialRampToValueAtTime(.0008,t+.2);
+  s.connect(f).connect(g).connect(auDrum); s.start(t+.03); s.stop(t+.22);
+}
+function auBassV(t,freq,dur,v,cfg,acid){
+  const o=AC.createOscillator(); o.type=cfg.wave;
+  const f=AC.createBiquadFilter(); f.type="lowpass"; f.Q.value=cfg.q;
+  const open=cfg.cut*(acid?(5+auSpeed*10):3.2);
+  f.frequency.setValueAtTime(Math.min(open,12000),t);
+  f.frequency.exponentialRampToValueAtTime(Math.max(cfg.cut*(1+auSpeed*1.5),60),t+dur*.75);
+  const g=AC.createGain();
+  o.frequency.setValueAtTime(freq,t);
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(v,t+.006);
+  g.gain.setValueAtTime(v,t+dur*.6);
+  g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+  o.connect(f).connect(g).connect(auBass); o.start(t); o.stop(t+dur+.03);
+}
+function auClav(t,freq,v){
+  const o=AC.createOscillator(); o.type="square";
+  const f=AC.createBiquadFilter(); f.type="bandpass"; f.frequency.value=freq*2.6; f.Q.value=3.5;
+  const g=AC.createGain();
+  o.frequency.value=freq;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v*.5,t+.003);
+  g.gain.exponentialRampToValueAtTime(.0008,t+.13);
+  o.connect(f).connect(g); g.connect(auLead); g.connect(auDelay);
+  o.start(t); o.stop(t+.15);
+}
+function auPluck(t,freq,v){
+  const o=AC.createOscillator(); o.type="sawtooth";
+  const f=AC.createBiquadFilter(); f.type="lowpass"; f.Q.value=6;
+  f.frequency.setValueAtTime(freq*7,t);
+  f.frequency.exponentialRampToValueAtTime(freq*1.5,t+.2);
+  const g=AC.createGain();
+  o.frequency.value=freq;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v*.4,t+.005);
+  g.gain.exponentialRampToValueAtTime(.0008,t+.28);
+  o.connect(f).connect(g); g.connect(auLead); g.connect(auDelay);
+  o.start(t); o.stop(t+.3);
+}
+function auSq(t,freq,v){
+  const o=AC.createOscillator(); o.type="square";
+  const g=AC.createGain();
+  o.frequency.value=freq;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v*.28,t+.004);
+  g.gain.exponentialRampToValueAtTime(.0008,t+.11);
+  o.connect(g); g.connect(auLead); g.connect(auDelay);
+  o.start(t); o.stop(t+.13);
+}
+function auChord(t,freqs,dur,v,wave,pad){
+  freqs.forEach((fr,i)=>{
+    [-6,6].forEach(det=>{
+      const o=AC.createOscillator(); o.type=wave;
+      o.frequency.value=fr; o.detune.value=det;
+      const g=AC.createGain();
+      const a=pad?.06:.008, r=pad?dur*.9:dur*.5;
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(v*.16/freqs.length,t+a);
+      g.gain.exponentialRampToValueAtTime(.0006,t+r+.05);
+      o.connect(g).connect(pad?auPad:auLead);
+      o.start(t); o.stop(t+r+.1);
+    });
+  });
+}
+
+/* --- scheduling --- */
+function auStepDur(tr){ return 60/(tr.bpm*(1+auSpeed*.35))/4; }
+
+function auSchedule(tr,i,t){
+  const L=tr.len;
+  const at=(pat,fn)=>{ if(!pat)return; auParse(pat).forEach(h=>{ if(h.s%L===i) fn(t,h.v,h.open); }); };
+  at(tr.kick,(t,v)=>auKick(t,v));
+  at(tr.snare,(t,v)=>auSnare(t,v));
+  if(auSpeed>.12||!tr.clap) at(tr.hat,(t,v,o)=>auHat(t,v,o||(auSpeed>.55&&Math.random()<.15)));
+  at(tr.clap,(t,v)=>auClap(t,v));
+
+  (tr.bass||[]).forEach(([s,d,len])=>{
+    if(s%L!==i) return;
+    auBassV(t,auMtof(auDeg(tr.root,tr.scale,d)),auStepDur(tr)*len*.95,.5,tr.bassCfg,tr.acid);
+  });
+  (tr.chord||[]).forEach(([s,ds,len])=>{
+    if(s%L!==i) return;
+    if(tr.pad&&auSpeed<.08) return;
+    auChord(t,ds.map(d=>auMtof(auDeg(tr.root+12,tr.scale,d))),auStepDur(tr)*len,.9,tr.chordWave||"sawtooth",tr.pad);
+  });
+  if(auSpeed>.3||!tr.pad){
+    (tr.lead||[]).forEach(([s,d,len])=>{
+      if(s%L!==i) return;
+      const f=auMtof(auDeg(tr.root+12,tr.scale,d));
+      const v=.8;
+      if(tr.leadVoice==="auClav") auClav(t,f,v);
+      else if(tr.leadVoice==="square") auSq(t,f,v);
+      else auPluck(t,f,v);
+    });
+  }
+  if(auSpeed>.75 && i%4===2) auHat(t,.35,true);
+  if(auSpeed>.9 && i%8===6) auSnare(t,.3);
+}
+
+function auRun(){
+  const tr=AU_TRACKS[auCur];
+  while(auNextT < AC.currentTime+.12){
+    const sw=(auStep%2===1)?auStepDur(tr)*tr.swing:0;
+    auSchedule(tr,auStep,auNextT+sw);
+    auNextT+=auStepDur(tr);
+    auStep=(auStep+1)%tr.len;
+  }
+}
+
+function auApply(){
+  if(!AC) return;
+  const tr=AU_TRACKS[auCur];
+  const cut=tr.cutBase*Math.pow(9,auSpeed);
+  auTone.frequency.setTargetAtTime(Math.min(cut,15000),AC.currentTime,.06);
+  auShaper.curve=auDrive((tr.dirty?.25:0)+auSpeed*.55);
+  auFb.gain.setTargetAtTime(.18+auSpeed*.22,AC.currentTime,.1);
+  auPad.gain.setTargetAtTime(.2+auSpeed*.18,AC.currentTime,.1);
+  auLead.gain.setTargetAtTime(.36+auSpeed*.3,AC.currentTime,.1);
+}
+
+
+/* --- the game side: lifecycle, muting, and one track per run --- */
+let muMuted = false, muWant = false, muArm = false;
+
+function audioOn(){ return !muMuted; }
+
+function audioInit(){
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) return false;
+  try { auBuild(); }
+  catch(e){
+    /* This runs at boot to warm the device. An unguarded failure anywhere in it
+       would take the whole game down, which is far worse than silence. */
+    try { if (AC) AC.close(); } catch(e2){}
+    AC = null; auMaster = null;
+    return false;
+  }
+  if (auMaster) auMaster.gain.value = muMuted ? 0 : MU.MASTER;
+  auWatch();
+  return true;
+}
+function audioWarm(){ if (!AC && !muMuted) audioInit(); }
+
+/* A different track every run, never the same one twice running. */
+/* A fresh track, and the old one actually stops. */
+function audioNewTrack(){
+  if (!AC) return;
+  auSilence();
+  const n = AU_TRACKS.length;
+  /* a straight draw from everything except what is playing, so it is properly
+     random rather than a fixed step from wherever it happened to be */
+  let pick = Math.floor(Math.random() * (n - 1));
+  if (pick >= auCur) pick++;
+  auCur  = pick;
+  auStep = 0;
+  auNextT = AC.currentTime + 0.02;
+  auApply();
+}
+
+function audioStart(){
+  if (muMuted) return;
+  if (!AC && !audioInit()) return;
+  if (AC.state === 'suspended') AC.resume();
+  try {
+    const b = AC.createBuffer(1, 1, AC.sampleRate);
+    const sN = AC.createBufferSource();
+    sN.buffer = b; sN.connect(AC.destination);
+    sN.start(AC.currentTime); sN.stop(AC.currentTime + 0.001);
+  } catch(e){}
+  muWant = true; muArm = true;
+  auStep = 0;
+  auNextT = AC.currentTime + 0.02;
+}
+function audioToggle(){
+  muMuted = !muMuted;
+  try { localStorage.setItem(MUTE_KEY, muMuted ? '1' : '0'); } catch(e){}
+  if (!AC){ if (!muMuted) audioInit(); return; }
+  auMaster.gain.setTargetAtTime(muMuted ? 0 : MU.MASTER, AC.currentTime, 0.05);
+  if (!muMuted && AC.state === 'suspended'){ muWant = true; muArm = true; AC.resume(); }
+}
+function audioLoadMute(){
+  let stored = null;
+  try { stored = localStorage.getItem(MUTE_KEY); } catch(e){}
+  muMuted = stored === null ? FRAMED : (stored === '1');
+}
+function audioSuspend(){ muWant = false; try { if (AC && AC.state === 'running') AC.suspend(); } catch(e){} }
+/* Pausing the game pauses the music. Suspending freezes the audio clock as well,
+   so nothing is scheduled into a gap, and arming on the way back makes the
+   scheduler pick up from the moment it actually starts running again rather than
+   from wherever the clock had got to. */
+function audioPause(){ audioSuspend(); }
+function audioResume(){
+  if (muMuted || !AC) return;
+  muWant = true; muArm = true;
+  try { AC.resume(); } catch(e){}
+}
+function audioClose(){
+  if (!AC) return;
+  try { if (auMaster) auMaster.gain.value = 0; AC.close(); } catch(e){}
+  AC = null; auMaster = null;
+}
+function audioBindLifecycle(){
+  addEventListener('pagehide', audioClose);
+  addEventListener('beforeunload', audioClose);
+  addEventListener('visibilitychange', function(){
+    const hid = (typeof document !== 'undefined') && document.hidden;
+    if (hid) audioSuspend(); else audioStart();
+  });
+}
+
+/* where the run currently sits on its own speed curve, 0 to 1 */
+function muTargetIntensity(){
+  if (state !== 'play' || !run) return MU.INT_IDLE;
+  return clamp((curveV() - K.V_START) / Math.max(K.V_MAX - K.V_START, 1), 0, 1);
+}
+function audioTick(){
+  if (!AC || muMuted) return;
+  /* resume() is asynchronous and the context is still suspended when it
+     returns, so a scheduler started against that clock never ran. Keep asking,
+     then begin from the moment it is genuinely running. */
+  if (AC.state !== 'running'){
+    if (muWant){ try { AC.resume(); } catch(e){} }
+    return;
+  }
+  if (muArm){ muArm = false; auStep = 0; auNextT = AC.currentTime + 0.02; }
+  const want = muTargetIntensity();
+  auSpeed += (want - auSpeed) * (1 - Math.exp(-lastFt / MU.INT_TAU));
+  if ((muFrame++ & 7) === 0){ auApply(); auPrune(); }
+  auRun();
+}
+let muFrame = 0;
+
+/* ==========================================================================
+   PERSISTENCE. Best score only, every call wrapped. A blocked or unavailable
+   store degrades to a game with no memory rather than throwing.
+   ========================================================================== */
+function loadBest(){
+  try {
+    let v = localStorage.getItem(STORE_KEY);
+    if (v === null) v = localStorage.getItem(OLD_KEYS.best);   // carried over
+    best = v ? (parseInt(v,10)||0) : 0;
+  }
+  catch(e){ best = 0; bestOK = false; }
+  try { diag = JSON.parse(localStorage.getItem(DIAG_KEY) || localStorage.getItem(OLD_KEYS.diag) || '{}') || {}; }
+  catch(e){ diag = {}; }
+}
+function saveBest(){
+  if (!bestOK) return;
+  try { const s = score(); if (s > best){ best = s; localStorage.setItem(STORE_KEY, String(best)); } }
+  catch(e){ bestOK = false; }
+}
+
+/* ==========================================================================
+   LOOP. Fixed timestep with an accumulator, so physics is identical on a
+   144Hz desktop and a stuttering Celeron.
+   ========================================================================== */
+let acc = 0, last = 0, perfTick = 0;
+function pushPerf(ms){
+  perf.hist[perf.i] = ms; perf.i = (perf.i+1) % perf.hist.length;
+  if (perf.n < perf.hist.length) perf.n++;
+  if (++perfTick >= 15){
+    perfTick = 0;
+    let sum = 0, mx = 0;
+    for (let i = 0; i < perf.n; i++){ const v = perf.hist[i]; sum += v; if (v > mx) mx = v; }
+    perf.avg = sum / perf.n; perf.worst = mx;
+  }
+}
+
+function frame(now){
+  requestAnimationFrame(frame);
+  if (!last) last = now;
+  let ft = (now - last)/1000; last = now;
+  lastFt = Math.min(ft, 0.05);
+  /* THE animation clock. Every moving thing in the background reads this, and
+     the line that advanced it was lost in a failed edit: animT sat at 0, so the
+     rotors held one angle and every craft hung motionless in the sky. Nothing
+     was ever going to move. */
+  animT += lastFt;
+  pushPerf(ft*1000);
+  if (ft > 0.25) ft = 0.25;
+
+  derive();
+  audioTick();
+  if (K.AUTO_QUALITY && ++qualHold > K.AUTO_HOLD && perf.n > 60){
+    if (perf.avg > K.AUTO_MS_HI && qual > K.QUAL_MIN){ qual -= K.QUAL_STEP; qualHold = 0; }
+    else if (perf.avg < K.AUTO_MS_LO && qual < 1){ qual = Math.min(1, qual + K.QUAL_STEP); qualHold = 0; }
+  }
+  if (state === 'dead' && run.inputLock > 0) run.inputLock -= ft;
+  if (shareMsg > 0) shareMsg -= ft;
+
+  /* A paused run still renders, so the scenery keeps turning behind the veil,
+     but nothing in the simulation moves. */
+  if (paused && state === 'play') ft = 0;
+  acc += ft;
+  let steps = 0;
+  while (acc >= K.STEP && steps < K.MAX_STEPS){
+    acc -= K.STEP; steps++;
+    if (state === 'title') tickTitle(K.STEP);
+    else if (state === 'play' || state === 'dying') tick(K.STEP);
+  }
+  if (acc > K.STEP * K.MAX_STEPS) acc = 0;
+  perf.steps = steps;
+
+  const targetX = (state === 'title') ? sampleTrack(P.z).cx : P.x;
+  if (state === 'title'){ rZ = P.z; rX = P.x; rH = 0; }
+  camX += (targetX - camX) * (1 - Math.exp(-K.CAM_LAG * ft));
+
+  draw();
+}
+
+/* ==========================================================================
+   BOOT
+   ========================================================================== */
+function boot(){
+  cv  = document.getElementById('c');
+  ctx = cv.getContext('2d', { alpha:false });
+  derive();
+  resize();
+  addEventListener('resize', resize);
+  addEventListener('orientationchange', () => setTimeout(resize, 120));
+
+  cv.addEventListener('pointerdown', e => {
+    if (state === 'title' || state === 'dead' || setOpen){
+      const hit = uiHit(e.clientX, e.clientY);
+      if (setOpen){
+        e.preventDefault();
+        if (hit === 'setDone'){ setOpen = false; UI.settings = null; showChrome(true); return; }
+        if (hit === 'setReset'){ resetOpts(); previewRefresh(); return; }
+        if (hit && hit.slice(0,3) === 'opt'){
+          setDrag = +hit.slice(3); setFromX(setDrag, e.clientX);
+        }
+        return;
+      }
+      if (state === 'title'){
+        if (hit === 'play')   { dailyMode = true;  audioStart(); start(); e.preventDefault(); return; }
+        if (hit === 'random') { dailyMode = false; audioStart(); start(); e.preventDefault(); return; }
+        if (hit === 'sound')  { audioToggle(); e.preventDefault(); return; }
+      }
+      if (hit === 'share' && state === 'dead'){ doShare(); e.preventDefault(); return; }
+      if (hit === 'menu' && state === 'dead'){
+        state = 'title'; paused = false; showChrome(true);
+        UI.menu = null; UI.settings = null;
+        previewRefresh();
+        e.preventDefault(); return;
+      }
+      if (hit === 'settings'){
+        /* The chrome is a fixed HTML footer. The panel is canvas. They do not
+           know about each other, so the bottom sliders and the buttons were
+           landing on top of the links. */
+        setOpen = true; setFrom = state; showChrome(false); previewRefresh();
+        for (const k in UI) if (k.slice(0,3) === 'opt') UI[k] = null;
+        e.preventDefault(); return;
+      }
+    }
+    if (state === 'play'){
+      const h2 = uiHit(e.clientX, e.clientY);
+      if (h2 === 'pause'){
+        paused = !paused;
+        if (paused) audioPause(); else audioResume();
+        e.preventDefault(); return;
+      }
+      if (h2 === 'skip'){ audioNewTrack(); e.preventDefault(); return; }
+      if (h2 === 'mute'){ audioToggle(); e.preventDefault(); return; }
+      if (paused){ paused = false; audioResume(); e.preventDefault(); return; }
+    }
+    try { cv.setPointerCapture(e.pointerId); } catch(err){}
+    if (drag.id === null){
+      /* Touch down steers at once, in the direction of the half you touched.
+         Dragging from there refines it continuously, so it is responsive like a
+         tap and analogue like a stick. */
+      const side = e.clientX < cv.clientWidth * 0.5 ? -1 : 1;
+      drag.id  = e.pointerId;
+      drag.val = side * K.TAP_BIAS;
+      drag.ox  = e.clientX - drag.val * D.DRAG_PX;
+    }
+    anyInput(); e.preventDefault();
+  }, { passive:false });
+  cv.addEventListener('pointermove', e => {
+    if (setOpen){ if (setDrag >= 0) setFromX(setDrag, e.clientX); return; }
+    if (e.pointerId === drag.id) dragMove(e.clientX);
+  });
+  const lift = e => { setDrag = -1; if (e.pointerId === drag.id){ drag.id = null; drag.val = 0; } };
+  cv.addEventListener('pointerup',     lift);
+  cv.addEventListener('pointercancel', lift);
+  cv.addEventListener('contextmenu',   e => e.preventDefault());
+
+  loadBest();
+  audioLoadMute();
+  audioBindLifecycle();
+  audioWarm();
+  captureOptBase();
+  defaultOpts();
+  loadOpts();
+  newRun(dailyMode ? dailySeed() : (urlSeed !== null ? urlSeed : (Math.random()*2147483647)|0));
+  state = 'title';
+  requestAnimationFrame(frame);
+}
+boot();
+</script>
+</body>
+</html>

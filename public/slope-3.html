@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slope 3: what the number actually means</title>
+<meta name="description" content="No official Slope 3 exists. The numbers belong to clone sites, not to a series. How to read them, and Hurtle, which uses named settings instead.">
+<link rel="canonical" href="https://hurtle.site/slope-3">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hurtle.site/slope-3">
+<meta property="og:title" content="Slope 3: what the number actually means">
+<meta property="og:site_name" content="Hurtle">
+<meta property="og:image" content="https://hurtle.site/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The word Hurtle above a glowing orange track running away to the horizon">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hurtle.site/og.png">
+<meta property="og:description" content="No official Slope 3 exists. The numbers belong to clone sites, not to a series. How to read them, and Hurtle, which uses named settings instead.">
+<meta name="robots" content="index,follow,max-snippet:-1">
+<style>
+:root{
+  --paper:#faf8f3;
+  --ink:#191817;
+  --muted:#57544d;
+  --accent:#8a4b00;
+  --rule:#dcd6c9;
+  --panel:#f3efe5;
+}
+@media (prefers-color-scheme: dark){
+  :root{--paper:#14150f;--ink:#eae6dc;--muted:#a5a092;--accent:#f5b647;--rule:#33342b;--panel:#1c1d16;}
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif;
+  font-size:1.0625rem;
+  line-height:1.65;
+  -webkit-text-size-adjust:100%;
+}
+main,header,footer{max-width:44rem;margin:0 auto;padding:0 1.25rem}
+header{padding-top:1.25rem;font-size:.875rem}
+h1{font-size:clamp(2rem,7vw,3.15rem);line-height:1.08;letter-spacing:-.015em;margin:1.25rem 0 1rem}
+h2{font-size:1.4rem;line-height:1.28;letter-spacing:-.01em;margin:2.75rem 0 .75rem}
+h3{font-size:1.0625rem;line-height:1.4;margin:1.75rem 0 .35rem}
+p,li{margin:0 0 1rem}
+ul,ol{padding-left:1.25rem}
+a{color:var(--accent);text-decoration:underline;text-underline-offset:.15em}
+a:focus-visible,iframe:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.skip{position:absolute;left:-999px;top:0;background:var(--ink);color:var(--paper);padding:.5rem .75rem;z-index:10}
+.skip:focus{left:.5rem;top:.5rem}
+.eyebrow{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.16em;font-size:.7rem;color:var(--muted);margin:2rem 0 0}
+.truth{border-left:3px solid var(--accent);background:var(--panel);padding:1rem 1rem .1rem;margin:1.25rem 0 2rem;font-size:1.125rem}
+.frame-wrap{width:100%;aspect-ratio:16/9;margin:1rem 0 .5rem}
+.frame-wrap iframe{width:100%;height:100%;border:1px solid var(--rule);background:#000;display:block}
+.dials{margin:1.25rem 0 1.5rem;padding:.35rem 1.15rem;background:var(--panel);border:1px solid var(--rule)}
+.dial{padding:.65rem 0;border-bottom:1px solid var(--rule)}
+.dial:last-child{border-bottom:0}
+.dial dt{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:var(--accent)}
+.dial dd{margin:.15rem 0 0;font-size:.9375rem}
+.faq{border-top:1px solid var(--rule);margin-top:2rem}
+.small{font-size:.875rem;color:var(--muted)}
+footer{border-top:1px solid var(--rule);margin-top:3.5rem;padding-top:1.25rem;padding-bottom:2.5rem;font-size:.875rem;color:var(--muted)}
+footer nav a{margin-right:1rem;display:inline-block}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important;scroll-behavior:auto !important}
+}
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://hurtle.site/#org",
+      "name": "Hurtle",
+      "url": "https://hurtle.site/"
+    },
+    {
+      "@type": "VideoGame",
+      "@id": "https://hurtle.site/#game",
+      "name": "Hurtle",
+      "url": "https://hurtle.site/",
+      "genre": "Arcade",
+      "gamePlatform": "Web browser",
+      "applicationCategory": "Game",
+      "playMode": "SinglePlayer",
+      "description": "An original endless descent arcade game that runs in the browser, with steepness, path width, obstacles, jumps, floor tilt, speed, camera and colour set by the player on ten sliders.",
+      "author": { "@id": "https://hurtle.site/#org" },
+      "publisher": { "@id": "https://hurtle.site/#org" }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://hurtle.site/slope-3#webpage",
+      "url": "https://hurtle.site/slope-3",
+      "name": "Slope 3: what the number actually means",
+      "description": "No official Slope 3 exists. The numbering belongs to clone sites rather than to any series, and Hurtle uses named settings instead of version numbers.",
+      "inLanguage": "en-AU",
+      "about": { "@id": "https://hurtle.site/#game" },
+      "publisher": { "@id": "https://hurtle.site/#org" }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://hurtle.site/slope-3#faq",
+      "isPartOf": { "@id": "https://hurtle.site/slope-3#webpage" },
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is there a Slope 3?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Not an official one. One Slope was released, on Y8 in 2014. Every numbered version after it was named by an unrelated site rather than by the people who made or publish the original."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between Slope 2 and Slope 3?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "There is no reliable answer, because the two names do not belong to one series. Different sites use the same number for different builds, and no changelog exists that would let anyone compare them."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is there a Slope 4?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Some sites list one. The numbers keep climbing because a fresh number is a fresh page to rank, not because a fourth release exists."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does a higher number mean a better game?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Without a single publisher behind the series, a number tells you nothing about the game and one useful thing about the site: it was named for a search rather than for a release."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How can I tell whether a numbered game site is worth playing?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Check whether an author is named anywhere on the page, whether the game runs in the page or wants a download, and how much the page loads from other people's servers, since third party content is what usually stalls on a managed network. All three are visible from outside without trusting anyone."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Hurtle a Slope 3?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Hurtle is an original game with no connection to Slope, Y8 or RobKayS, and it carries no sequel number at all. What a higher number usually promises is exposed as settings you adjust yourself."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#play">Skip to the game</a>
+<header><a href="/">Hurtle</a></header>
+<main>
+  <p class="eyebrow">A number in search of a game</p>
+  <h1>Nobody released a Slope 3</h1>
+  <div class="truth">
+    <p>One Slope was made, in 2014. Every number after it was added by a site with no connection to the original. The game further down this page is called Hurtle. It is original, it is not Slope, and it does not carry a sequel number of its own.</p>
+  </div>
+  <p>You can skip to it if you like. But the numbering is worth two minutes first, because once you see how it works you can read every game site you land on slightly better, and not just this one.</p>
+
+  <h2>Where the numbers come from</h2>
+  <p>A sequel implies a series, and a series implies somebody shipping it. Slope has a somebody: RobKayS made it, Y8 has published it since 2014, and between them they shipped one Slope. The full record, including the official titles that did come later and why none of them is a sequel, is on <a href="/slope-2">the Slope 2 page</a>.</p>
+  <p>The numbers came afterwards and from elsewhere. An unrelated site puts up a build, calls it the second one, and ranks for a term nobody was competing over. The next site cannot use that name, so it takes the next digit. Some have gone to four. The sequence has no ceiling and no author, and it climbs for a simple reason: sites need fresh names more often than games need new versions.</p>
+
+  <h2>Why nobody can tell you what changed</h2>
+  <p>Ask two sites what is different between the second and the third and you get two unrelated answers, both delivered confidently. One will tell you the physics were refined. One will describe collectables. One will list the same features it listed for the previous number. None of them cites a release, because there is nothing to cite.</p>
+  <p>That is the actual difference between a version number that means something and one that does not. A real version number is a claim somebody is accountable for. These are labels applied after the fact by people who did not make the thing they are numbering. The digit is doing work a release should be doing.</p>
+
+  <h2>How to size up a numbered game site in ten seconds</h2>
+  <p>None of this needs you to take anyone's word for anything, and all of it is visible from outside the page.</p>
+  <ul>
+    <li><strong>Is an author named anywhere?</strong> Not a brand, a person or a studio. Sites that made something usually say who. Sites that collected something usually do not.</li>
+    <li><strong>Does the game run in the page, or does it want a download?</strong> A browser game asking you to install anything has stopped being a browser game.</li>
+    <li><strong>How much of the page comes from somewhere else?</strong> Fonts, trackers, ad frames and video from third party domains are what stall or hang on a filtered network, and they are the reason a page half loads and then sits there.</li>
+    <li><strong>Does it tell you what it is, or only what it wants to rank for?</strong> A page that repeats the same phrase in every heading was built for a crawler and it will read like it.</li>
+  </ul>
+  <p>That last one cuts both ways and you are entitled to apply it here.</p>
+  <p>None of which means a numbered clone is not worth playing. Some are perfectly good, some are better than the thing they copied, and if you have found one you like then the number on it costs you nothing. The point is only that the number is not information, so do not use it as a shortcut for deciding.</p>
+
+  <h2>Hurtle uses names instead of numbers</h2>
+  <p>A version number is a blunt instrument. It bundles somebody else's decisions into one digit and offers it as an upgrade, and you either take the bundle or you do not. Even when the number is real, you never get to say which parts of it you wanted.</p>
+  <p>Hurtle unbundles that. The settings a sequel would have quietly changed on your behalf are exposed, named and adjustable, and there are ten of them.</p>
+  <p>They fall into three groups, and it is worth knowing which is which before you start moving things, because they do quite different jobs.</p>
+  <dl class="dials">
+    <div class="dial"><dt>The ground: steepness, path width</dt><dd>Steepness sets how hard the descent pulls. Path width sets how much margin you get for a bad decision. Between them they decide whether a run feels tense or open.</dd></div>
+    <div class="dial"><dt>What is on it: obstacles, jumps, floor tilt</dt><dd>Obstacles sets how crowded the track is. Jumps: How often the track opens into a gap you have to clear. Floor tilt: How hard the banked floor pushes you sideways while you steer against it.</dd></div>
+    <div class="dial"><dt>How it moves: speed</dt><dd>The single most direct control there is, and the first one most people reach for. It is also the one that changes the game least, once you have got used to it.</dd></div>
+    <div class="dial"><dt>What you see: camera angle, camera height</dt><dd>Neither touches the track, both change the game. How far ahead you can read the ground is often the difference between an unfair run and a fair one, particularly on a small screen.</dd></div>
+    <div class="dial"><dt>The look: neon, accent</dt><dd>Two hues, one for the grid and the ball, one for the track edges and the blocks. They change nothing about how a run plays, which is exactly why they are worth having: it is the one part of the game you can set purely because you like it.</dd></div>
+  </dl>
+  <p>Changes take effect on your next run, and a single button resets the lot, so nothing you do to it is permanent and nothing is hidden behind having played for long enough.</p>
+  <p>The honest limit of this idea: a sequel can bring genuinely new ideas, and a slider cannot. Sliders move what is already there. What they buy instead is that the game you end up playing is the one you chose, rather than the one somebody decided you would like.</p>
+
+  <h2 id="play">Play Hurtle</h2>
+  <p>An endless descent that keeps getting faster. A run is one ball, two directions, and a floor that leans. Obstacles arrive in small groups with clear track between them, which is enough room to see the next problem and pick a line before it reaches you. It gets faster until you make a mistake, and the mistake is always legible: you can see what you did.</p>
+  <p id="controls">Controls, in full: two directions and nothing else. Left and right arrows on a keyboard, or A and D if your hands are already there. On a phone or tablet, touch the left or right half and the ball goes that way at once; slide your thumb further to steer harder. The game only starts listening to the keyboard once you have clicked or tapped it, so if your first press does nothing, that is why. Settings open by press Settings on the title screen, or the Settings button on the screen you get after a run ends. </p>
+  <div class="frame-wrap">
+    <iframe id="game" src="/" width="960" height="540" title="Hurtle, playable in this frame" aria-describedby="controls"></iframe>
+  </div>
+  <p class="small">Nothing to install, no account, no payment step. The game runs in this page.</p>
+
+  <h2>On Slope 3 unblocked</h2>
+  <p>The unblocked version of this search is the same search with a network problem attached. Nobody can promise you an unblocked game, and a site that puts the word in its own address is usually the first thing a filter catches, since most of them match keywords in the address before they ever look at the page.</p>
+  <p>This page loads no fonts, scripts, images or trackers from anyone else, which means there is very little of it to object to, and that is as far as any honest claim can go. The <a href="/slope-online">page about playing unblocked</a> has the detail, and it points to the original as well.</p>
+
+  <section class="faq" aria-labelledby="faq-heading">
+    <h2 id="faq-heading">Questions people actually ask</h2>
+
+    <h3>Is there a Slope 3?</h3>
+    <p>Not an official one. One Slope was released, on Y8 in 2014, and every number after it was applied by an unrelated site.</p>
+
+    <h3>What is the difference between Slope 2 and Slope 3?</h3>
+    <p>There is no reliable answer, because the names do not belong to one series. Different sites attach the same number to different builds and no changelog exists to compare them against.</p>
+
+    <h3>Is there a Slope 4?</h3>
+    <p>Some sites list one. The numbers climb because a fresh number is a fresh page to rank, not because a fourth release exists.</p>
+
+    <h3>Does a higher number mean a better game?</h3>
+    <p>No. With no publisher behind the series, the number tells you nothing about the game and one useful thing about the site.</p>
+
+    <h3>Is Hurtle a Slope 3?</h3>
+    <p>No. It is an original game with no connection to Slope, Y8 or RobKayS, and it carries no sequel number. What a higher number usually promises is on the settings panel instead.</p>
+
+    <h3>Can I make Hurtle harder than the default?</h3>
+    <p>Yes, in several directions at once if you want. Steepness, obstacles, speed and path width all move independently, so hard can mean narrow and calm or wide and fast, which are quite different problems.</p>
+
+    <h3>Is it free?</h3>
+    <p>Yes. It runs in the browser on this page, with nothing to install and no account.</p>
+  </section>
+
+  <h2>Elsewhere on this site</h2>
+  <p>The record of who made the original and why no sequel followed is on <a href="/slope-2">the Slope 2 page</a>. If you are behind a school filter, or you simply want the original, <a href="/slope-online">the unblocked page</a> handles both honestly and links straight out to it. The <a href="/">front page</a> is where Hurtle lives.</p>
+</main>
+<footer>
+  <nav aria-label="Site pages"><a href="/">Front page</a> <a href="/slope-2">Slope 2</a> <a href="/slope-online">Slope unblocked</a></nav>
+  <p>Hurtle is an original game. This site is not affiliated with Slope, Y8 or RobKayS. Facts on this page were checked in July 2026.</p>
+  <p>Built by <a href="https://nathanhaslewood.com.au" rel="noopener noreferrer" target="_blank">Nathan Haslewood</a>, who also made <a href="https://beakdown.fun" rel="noopener noreferrer" target="_blank">Beakdown</a>.</p>
+</footer>
+<script>
+(function () {
+  var frame = document.getElementById('game');
+  if (!frame) { return; }
+  /*  */
+  var keys = ['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'];
+  function relay(e) {
+    if (document.activeElement === frame) { return; }
+    if (keys.indexOf(e.code) === -1) { return; }
+    e.preventDefault();
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.dispatchEvent(new KeyboardEvent(e.type, {
+        key: e.key, code: e.code, keyCode: e.keyCode, which: e.which, bubbles: true
+      }));
+    } catch (err) {
+      frame.focus();
+    }
+  }
+  window.addEventListener('keydown', relay, true);
+  window.addEventListener('keyup', relay, true);
+})();
+</script>
+</body>
+</html>

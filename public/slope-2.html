@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slope 2: the sequel nobody made</title>
+<meta name="description" content="There is no official Slope 2. The record, what the sites using that name really are, and Hurtle: an original game with its settings on sliders you set.">
+<link rel="canonical" href="https://hurtle.site/slope-2">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hurtle.site/slope-2">
+<meta property="og:title" content="Slope 2: the sequel nobody made">
+<meta property="og:site_name" content="Hurtle">
+<meta property="og:image" content="https://hurtle.site/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The word Hurtle above a glowing orange track running away to the horizon">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hurtle.site/og.png">
+<meta property="og:description" content="There is no official Slope 2. The record, what the sites using that name really are, and Hurtle: an original game with its settings on sliders you set.">
+<meta name="robots" content="index,follow,max-snippet:-1">
+<style>
+:root{
+  --paper:#faf8f3;
+  --ink:#191817;
+  --muted:#57544d;
+  --accent:#8a4b00;
+  --rule:#dcd6c9;
+  --panel:#f3efe5;
+}
+@media (prefers-color-scheme: dark){
+  :root{--paper:#14150f;--ink:#eae6dc;--muted:#a5a092;--accent:#f5b647;--rule:#33342b;--panel:#1c1d16;}
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif;
+  font-size:1.0625rem;
+  line-height:1.65;
+  -webkit-text-size-adjust:100%;
+}
+main,header,footer{max-width:44rem;margin:0 auto;padding:0 1.25rem}
+header{padding-top:1.25rem;font-size:.875rem}
+h1{font-size:clamp(2rem,7vw,3.15rem);line-height:1.08;letter-spacing:-.015em;margin:1.25rem 0 1rem}
+h2{font-size:1.4rem;line-height:1.28;letter-spacing:-.01em;margin:2.75rem 0 .75rem}
+h3{font-size:1.0625rem;line-height:1.4;margin:1.75rem 0 .35rem}
+p,li{margin:0 0 1rem}
+ul,ol{padding-left:1.25rem}
+a{color:var(--accent);text-decoration:underline;text-underline-offset:.15em}
+a:focus-visible,iframe:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.skip{position:absolute;left:-999px;top:0;background:var(--ink);color:var(--paper);padding:.5rem .75rem;z-index:10}
+.skip:focus{left:.5rem;top:.5rem}
+.eyebrow{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.16em;font-size:.7rem;color:var(--muted);margin:2rem 0 0}
+.truth{border-left:3px solid var(--accent);background:var(--panel);padding:1rem 1rem .1rem;margin:1.25rem 0 2rem;font-size:1.125rem}
+.frame-wrap{width:100%;aspect-ratio:16/9;margin:1rem 0 .5rem}
+.frame-wrap iframe{width:100%;height:100%;border:1px solid var(--rule);background:#000;display:block}
+.dials{margin:1.25rem 0 1.5rem;padding:.35rem 1.15rem;background:var(--panel);border:1px solid var(--rule)}
+.dial{padding:.65rem 0;border-bottom:1px solid var(--rule)}
+.dial:last-child{border-bottom:0}
+.dial dt{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:var(--accent)}
+.dial dd{margin:.15rem 0 0;font-size:.9375rem}
+.faq{border-top:1px solid var(--rule);margin-top:2rem}
+.small{font-size:.875rem;color:var(--muted)}
+footer{border-top:1px solid var(--rule);margin-top:3.5rem;padding-top:1.25rem;padding-bottom:2.5rem;font-size:.875rem;color:var(--muted)}
+footer nav a{margin-right:1rem;display:inline-block}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important;scroll-behavior:auto !important}
+}
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://hurtle.site/#org",
+      "name": "Hurtle",
+      "url": "https://hurtle.site/"
+    },
+    {
+      "@type": "VideoGame",
+      "@id": "https://hurtle.site/#game",
+      "name": "Hurtle",
+      "url": "https://hurtle.site/",
+      "genre": "Arcade",
+      "gamePlatform": "Web browser",
+      "applicationCategory": "Game",
+      "playMode": "SinglePlayer",
+      "description": "An original endless descent arcade game that runs in the browser, with steepness, path width, obstacles, jumps, floor tilt, speed, camera and colour set by the player on ten sliders.",
+      "author": { "@id": "https://hurtle.site/#org" },
+      "publisher": { "@id": "https://hurtle.site/#org" }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://hurtle.site/slope-2#webpage",
+      "url": "https://hurtle.site/slope-2",
+      "name": "Slope 2: the sequel nobody made",
+      "description": "There is no official Slope 2. The record, what the sites using that name actually are, and Hurtle: an original endless descent game with its settings on sliders.",
+      "inLanguage": "en-AU",
+      "about": { "@id": "https://hurtle.site/#game" },
+      "publisher": { "@id": "https://hurtle.site/#org" }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://hurtle.site/slope-2#faq",
+      "isPartOf": { "@id": "https://hurtle.site/slope-2#webpage" },
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is there a Slope 2?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Not an official one. Slope was made by RobKayS and published on Y8 in 2014, and no numbered sequel has been released by them or by anyone else entitled to the name. Every site offering Slope 2 is unaffiliated, and several say so in their own footers."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Who made Slope, and when?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "RobKayS, published on Y8 in 2014. The original is still on Y8 and still free to play."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are the Slope 2 sites official?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. They are unaffiliated fan games and clones. The strongest evidence is that they contradict each other about what the game contains, because there is no release to agree about."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Hurtle a Slope 2, or a Slope clone?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Neither. Hurtle is an original game in the same genre, with no connection to Slope, Y8 or RobKayS, and it is not named or numbered as a sequel to anything."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What can I change in Hurtle?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Ten settings: steepness, path width, obstacles, jumps, floor tilt, speed, camera angle, camera height, and two colour controls. Changes take effect on your next run, and one button resets them."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Hurtle cost anything or need an account?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. It runs in the browser on the page itself, with nothing to install, no sign up and no payment step."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What about Slope 2 unblocked?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No page can honestly promise that anything is unblocked, because filters differ by school, by vendor and by week. What a page can control is how little of it there is to block. This one is a single file that loads nothing from other people's servers."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#play">Skip to the game</a>
+<header><a href="/">Hurtle</a></header>
+<main>
+  <p class="eyebrow">The record on a search term</p>
+  <h1>There is no official Slope 2</h1>
+  <div class="truth">
+    <p>The sequel you searched for was never made, by anyone with a claim to the name. The game on this page is called Hurtle. It is original, it is not Slope, and this site has no connection to Slope, Y8 or RobKayS.</p>
+  </div>
+  <p>That is the short version, and if it is all you came for you can stop reading. What follows is the evidence, what the dozens of sites using the name actually are, and why the game further down takes a different approach to the whole idea of a sequel.</p>
+
+  <h2>The record, in four lines</h2>
+  <p>Slope was created by RobKayS and published on Y8 in 2014. It is still there, still free, and you can <a href="https://www.y8.com/games/slope">play the original on Y8</a> right now. Y8 has released other official titles since, a multiplayer version among them, and publishes a Slope app for phones. None of those is a numbered sequel. As at July 2026 there is no official Slope 2 from RobKayS, from Y8, or from anyone else entitled to the name, and players have been asking for one on the game's own pages for years.</p>
+  <p>So the search is real and the game behind it is not. Around a hundred and sixty five thousand people a month look for something that was never released. That is unusual, and it explains most of what you see when you search for it.</p>
+
+  <h2>What those sites actually are</h2>
+  <p>Fan games and clones, on domains with no relationship to the original. Some are upfront and say in their own footers that they are unaffiliated. Others are less careful, and at least one credits its clone to Rob Kay by name, which he had nothing to do with.</p>
+  <p>They do not even settle on a name. The same idea turns up as Slope 2, as Slope Game 2 and as Slope 2 Game across different domains, because each spelling is a separate search with its own traffic attached, and a site that wants all of them needs a page for each. That is a naming strategy, not a release.</p>
+  <p>The bigger tell is that they cannot agree with each other about what the sequel contains. One describes power ups and speed boosts. One offers collectables it will only commit to as a maybe. One says the physics and the track generation were refined and lists nothing else. One is a reskin with a new sky. If a real sequel existed they would all be describing the same game, because there would be a game to describe. They are not describing a game. They are describing a search term.</p>
+  <p>None of that makes those sites bad, and this page is not here to referee them. It makes the name empty. It is a want with nothing attached to it.</p>
+
+  <h2>What a sequel would have had to change</h2>
+  <p>Here is the more interesting question, and the one almost nobody asks. Suppose someone did make the official follow up. What would be in it?</p>
+  <p>Read what players ask for and you get a list that contradicts itself within about four posts. Make it faster. Make it slower to start so the first ten seconds are not dead time. Make the track wider. Make it narrower, that is the entire point. More obstacles. Fewer obstacles and more speed. Pull the camera back so you can see what is coming. Push it in so it feels fast. Every one of those is reasonable, and no single build satisfies all of them, which is part of why a sequel is a hard thing to make and an easy thing to want.</p>
+  <p>The clone sites solve this by guessing. They pick a few changes, call the result a sequel and hope. That is what every version number in every game is: somebody else deciding what you wanted more of.</p>
+
+  <h2>Hurtle's answer is to hand the decision over</h2>
+  <p>Hurtle does not guess. The things a sequel would have argued about are settings in the game, and you decide where they sit. There are ten.</p>
+  <dl class="dials">
+    <div class="dial"><dt>Steepness</dt><dd>How steep the descent runs.</dd></div>
+    <div class="dial"><dt>Path width</dt><dd>How much room you have to work with.</dd></div>
+    <div class="dial"><dt>Obstacles</dt><dd>How much is in the way.</dd></div>
+    <div class="dial"><dt>Jumps</dt><dd>How often the track opens into a gap you have to clear.</dd></div>
+    <div class="dial"><dt>Floor tilt</dt><dd>How hard the banked floor pushes you sideways while you steer against it.</dd></div>
+    <div class="dial"><dt>Speed</dt><dd>How fast you travel.</dd></div>
+    <div class="dial"><dt>Camera angle</dt><dd>The angle you watch the run from.</dd></div>
+    <div class="dial"><dt>Camera height</dt><dd>How high the view sits above the track.</dd></div>
+    <div class="dial"><dt>Neon</dt><dd>The hue of the grid and the ball.</dd></div>
+    <div class="dial"><dt>Accent</dt><dd>The hue of the track edges and the blocks.</dd></div>
+  </dl>
+  <p>Changes apply to your next run, and one button puts everything back where it started, so there is no way to wreck the game by experimenting with it. Nothing is locked, nothing has to be earned, and there is no better version of the game being held back from you.</p>
+  <p>Two things follow from that. The obvious one: if what you wanted from a sequel was faster, or wider, or less cluttered, you can have it in about five seconds instead of waiting for a release that has not arrived in twelve years. The less obvious one is better. You find out what you actually want, which is rarely what you would have guessed. Most people who push speed to the top once do not leave it there.</p>
+
+  <h2 id="play">Play Hurtle</h2>
+  <p>An endless descent that keeps getting faster. You steer a ball, and the only thing you ever do is move it left or right. The floor is banked and it never stops pushing you toward an edge, so holding a line is work rather than a thing you set up once. Speed climbs the whole way, the track narrows, and the run ends when you hit a block or run out of floor.</p>
+  <p id="controls">How it controls: steer with the left and right arrow keys, or with A and D. On a touch screen, touch the left or right half and the ball goes that way straight away; slide your thumb further to steer harder, or back toward the middle to ease off. If a key press does nothing at first, click or tap the game once and it will take your input from then on. To change the settings, press Settings on the title screen, or the Settings button on the screen you get after a run ends. </p>
+  <div class="frame-wrap">
+    <iframe id="game" src="/" width="960" height="540" title="Hurtle, playable in this frame" aria-describedby="controls"></iframe>
+  </div>
+  <p class="small">Nothing to install, no account, no payment step. The game runs in this page.</p>
+
+  <h2>Playing it at school</h2>
+  <p>A fair share of the people searching for this are on a school laptop, which is why the unblocked version of the query exists at all. No page can honestly promise you an unblocked game, this one included. Filters differ by school, by vendor and by week, and no site can see your network from its side.</p>
+  <p>What a page can control is how much of itself there is to block, and this one is deliberately small. One file. No fonts, scripts, images or trackers pulled from anyone else. No popups, no full screen prompts, no ads. That is not a promise, it is a list of the ways it will not fail. The <a href="/slope-online">page on playing Slope unblocked</a> goes through how filters actually behave, and it links to the original, which is what most people in that situation are really after.</p>
+
+  <section class="faq" aria-labelledby="faq-heading">
+    <h2 id="faq-heading">Questions people actually ask</h2>
+
+    <h3>Is there a Slope 2?</h3>
+    <p>Not an official one. There is one Slope, from 2014, and no numbered sequel has been released by anyone entitled to release one.</p>
+
+    <h3>Who made Slope, and when?</h3>
+    <p>RobKayS, published on Y8 in 2014. It is still there and still free.</p>
+
+    <h3>Are the Slope 2 sites official?</h3>
+    <p>No, they are unaffiliated fan games and clones. The strongest evidence is that they contradict each other about what the game contains.</p>
+
+    <h3>Will there ever be a real one?</h3>
+    <p>Nobody outside Y8 and RobKayS can answer that, and neither has announced anything. Twelve years of silence is not proof it will never happen, but it is not encouraging either.</p>
+
+    <h3>Is Hurtle a Slope 2, or a Slope clone?</h3>
+    <p>Neither. It is an original game in the same genre, with no connection to Slope, Y8 or RobKayS, and it is not named or numbered as a sequel to anything.</p>
+
+    <h3>What can I change in Hurtle?</h3>
+    <p>Ten settings: steepness, path width, obstacles, jumps, floor tilt, speed, camera angle, camera height, and two colour controls. Changes take effect on your next run and one button resets them.</p>
+
+    <h3>Does it cost anything, or need an account?</h3>
+    <p>No. It runs in the browser on this page. Nothing to install, no sign up, no payment step.</p>
+
+    <h3>Is there a Slope 3?</h3>
+    <p>No, and why the numbers keep climbing anyway is worth two minutes: <a href="/slope-3">what the number really means</a>.</p>
+
+    <h3>What about Slope 2 unblocked?</h3>
+    <p>Covered above, and in more detail on <a href="/slope-online">the unblocked page</a>. Short version: nobody can promise it, and anyone who does is telling you something about themselves.</p>
+  </section>
+
+  <h2>Elsewhere on this site</h2>
+  <p>The numbering does not stop at two, and <a href="/slope-3">there is no Slope 3 either</a>, which turns out to say something useful about how clone sites get named in the first place. If what you actually wanted was the original, or the version people call unblocked, <a href="/slope-online">that has an honest page of its own</a>. Or go to the <a href="/">front page</a>, where Hurtle sits with nothing else around it.</p>
+</main>
+<footer>
+  <nav aria-label="Site pages"><a href="/">Front page</a> <a href="/slope-3">Slope 3</a> <a href="/slope-online">Slope unblocked</a></nav>
+  <p>Hurtle is an original game. This site is not affiliated with Slope, Y8 or RobKayS. Facts on this page were checked in July 2026.</p>
+  <p>Built by <a href="https://nathanhaslewood.com.au" rel="noopener noreferrer" target="_blank">Nathan Haslewood</a>, who also made <a href="https://beakdown.fun" rel="noopener noreferrer" target="_blank">Beakdown</a>.</p>
+</footer>
+<script>
+(function () {
+  var frame = document.getElementById('game');
+  if (!frame) { return; }
+  /*  */
+  var keys = ['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'];
+  function relay(e) {
+    if (document.activeElement === frame) { return; }
+    if (keys.indexOf(e.code) === -1) { return; }
+    e.preventDefault();
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.dispatchEvent(new KeyboardEvent(e.type, {
+        key: e.key, code: e.code, keyCode: e.keyCode, which: e.which, bubbles: true
+      }));
+    } catch (err) {
+      frame.focus();
+    }
+  }
+  window.addEventListener('keydown', relay, true);
+  window.addEventListener('keyup', relay, true);
+})();
+</script>
+</body>
+</html>

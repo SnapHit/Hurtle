@@ -1,0 +1,23 @@
+# Hurtle
+
+Hurtle is an original endless descent arcade game that runs in a browser. You
+steer a ball down a narrowing track, avoiding blocks and clearing gaps, and the
+run ends when you hit something or fall off. It is free, has no accounts, no ads
+and no third-party requests.
+
+Ten settings are exposed to the player and change the generated track and the
+view: steepness, path width, obstacles, jumps, floor tilt, speed, camera angle,
+camera height, and two colour controls (neon and accent).
+
+Every player gets the same track on the same day. The seed is derived from the
+UTC date, so scores on a given day are directly comparable without any server.
+A random track is also available at any time.
+
+## Pages
+
+- https://hurtle.site/ : the game
+- https://hurtle.site/slope-2 : why there is no official Slope 2
+- https://hurtle.site/slope-3 : why there is no Slope 3 either
+- https://hurtle.site/slope-online : playing Slope online and on school networks
+
+Built by Nathan Haslewood. https://nathanhaslewood.com.au
