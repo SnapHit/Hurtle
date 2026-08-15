@@ -137,8 +137,8 @@ const K = {
      minute. This is a second, slower stage that starts once the first has
      settled and keeps climbing along the axes that reward planning rather than
      reflexes: more blocks per row, and rows closer together. */
-  LATE_START: 40,         // s before the second stage begins
-  LATE_TAU: 70,           // s, its time constant
+  LATE_START: 75,         // s before the second stage begins
+  LATE_TAU: 132,           // s, its time constant
   LATE_ROW_ADD: 1.0,      // extra blocks per row at full late stage
   LATE_GAP_MUL: 0.80,     // clear-run multiplier at full late stage
 
@@ -162,7 +162,9 @@ const K = {
      density, precision, and the section mix drifting harder over a run. */
   V_START: 871,
   V_MAX: 2980,
-  V_TAU: 38,
+  V_TAU: 71.7,           // 95% of V_MAX at 190s, one music track. Was 38,
+                          //   which reached 97% at 120s: difficulty was maxed
+                          //   before a new player had learnt the controls.
 
   /* --- threading. ---
      The report's complaint in 4.7 is that Slope scores pure distance, so
@@ -203,7 +205,7 @@ const K = {
                           //   PREPARATION budget: long enough to see a challenge,
                           //   read it, and decide how to take it before arriving.
                           //   This is the thing that makes a hard game feel fair.
-  LOOK_TAU: 34,           // s, how fast the view tightens
+  LOOK_TAU: 64,          // stretched with V_TAU (was 34)           // s, how fast the view tightens
   NEAR_Z: 26,             // world units ahead of the camera where drawing starts
   BAND_Z: 200,            // world units per colour band at V_START. At 108 the
                           //   view held about 30 bands, and since each one now
@@ -303,7 +305,7 @@ const K = {
      sit or ordinary tracking error walks you off the edge. Sized so both hold. */
   HW_START: 288,
   HW_MIN: 215,
-  HW_TAU: 34,
+  HW_TAU: 64,            // stretched with V_TAU (was 34)
   SLICE_DZ: 18,
   VIEW_SLICES: 92,
   LIP_W: 11,
@@ -590,7 +592,7 @@ const K = {
      escalation that never hits a ceiling: it asks for better planning rather
      than faster hands, so it can keep going long after speed and density have
      settled, and it cannot outrun anyone's reflexes. */
-  SEC_DRIFT_TAU: 55,      // s, how fast the mix hardens
+  SEC_DRIFT_TAU: 104,    // stretched with V_TAU (was 55)      // s, how fast the mix hardens
   SEC_DRIFT_AMT: 1.00,    // how far it goes. 0 disables the drift entirely.
 
   /* --- practice. Straight off the Slope Plus wishlist: pick a point on the
@@ -612,11 +614,11 @@ const K = {
      the track clears so you can see the next one coming and decide. */
   BEAT_ROW_T: 0.30,       // s between rows INSIDE one challenge
   BEAT_ROWS_MAX: 3,       // most rows in one challenge, late in a run
-  BEAT_ROWS_TAU: 55,      // s over which challenges grow
+  BEAT_ROWS_TAU: 104,    // stretched with V_TAU (was 55)      // s over which challenges grow
   BEAT_CLEAR_START: 3.00, // s of clear track after a challenge, at t=0
   BEAT_CLEAR_MIN: 1.50,   // s, asymptote. Never below the lookahead, so the next
                           //   challenge is always visible before this one ends.
-  BEAT_CLEAR_TAU: 34,
+  BEAT_CLEAR_TAU: 64,    // stretched with V_TAU (was 34)
   OBST_FIRST: 900,
   OBST_D: 78,             // depth in z. MUST exceed V_MAX*STEP.
   OBST_H: 42,
@@ -631,7 +633,7 @@ const K = {
                           //   Sized against the wigglier safe line, not guessed:
                           //   at 48 the line-follower lost 4 runs in 90, at 54 it
                           //   loses none.
-  OBST_CLEAR_TAU: 46,     // s
+  OBST_CLEAR_TAU: 87,    // stretched with V_TAU (was 46)     // s
   OBST_CLEAR_GAIN: 0.55,  // widens the corridor where the line is turning hard,
                           //   since a moving line is harder to hold
   OBST_MAX_ROW: 3,
@@ -679,6 +681,31 @@ const K = {
   SAVE_BURST: 0.45,
   SAVE_FREEZE: 0.14,
   SAVE_IFRAMES: 0.9,
+
+  /* --- the opening. For GRACE_T seconds a death becomes a recovery: the
+     sparks, the shake and the freeze all happen, only the ending does not.
+     The player has to feel they nearly died, because that is what teaches the
+     mechanic. Nothing here is random, and nothing here draws from run.rnd:
+     the track a player gets must not depend on how they played it. --- */
+  GRACE_T: 20,            // s of run time in which death is converted
+  GRACE_FREEZE: 0.30,     // s. Between SAVE_FREEZE and DEATH_FREEZE: a real
+                          //   pause, shorter than the one that ends a run.
+  GRACE_SHAKE_MUL: 0.75,  // of the shake the same death would have thrown
+  GRACE_IFRAMES: 0.80,    // s of invulnerability, so the block that got you
+                          //   cannot get you again on the very next step
+  GRACE_FLASH: 0.40,      // s the offending block stays lit
+  GRACE_INSET: 0.45,      // on a fall, how far from the centre line the player
+                          //   is put back, as a fraction of corridor half width.
+                          //   Landing them on the edge they just left means
+                          //   leaving it again two frames later.
+  GRACE_GAP_CLEAR: 1.15,  // safety factor on the bounce out of a hole
+  GRACE_HANDOVER_T: 0.15, // s. The window will not close while the player would
+                          //   be off the track this soon afterwards. Closing on
+                          //   a bare clock drops a wall-holder mid-lunge and
+                          //   kills them a few frames later, which is worse
+                          //   than never having had the window.
+  GRACE_TAIL_MAX: 1.5,    // s. Hard bound on that wait, so a player who is
+                          //   never settled cannot hold the window open.
 
   /* --- death legibility. Three kinds, three visuals, no words. --- */
   DEATH_FREEZE: 0.45,
@@ -1740,7 +1767,89 @@ function consumeSave(o){
    Shake means you hit something. No shake means you fell, and the highlight
    says which way.
    ========================================================================== */
+/* True for the opening of every run, for every player, identically. Deliberately
+   not adaptive: the on-ramp cannot depend on skill or on how many runs this
+   browser has had, or two players' scores stop being comparable. run.t is the
+   simulation clock, so this is the same window at 10fps and at 144fps. */
+function graceActive(){ return !!run && !run.over && !run.graceDone; }
+
+/* Would the player still be on the track a beat from now? Not airborne, not
+   over a hole, and not already committed to an edge at the speed they are
+   travelling sideways. */
+function graceSafe(){
+  if (!P || P.air) return false;
+  if (gapAt(P.z)) return false;
+  const tr = sampleTrack(P.z);
+  const ahead = Math.abs((P.x + P.vx * K.GRACE_HANDOVER_T) - tr.cx);
+  return ahead <= tr.hw - K.P_HW;
+}
+
+/* A death, minus the ending. The hard part is not suppressing the state change,
+   it is the handover: if the window simply expired while the player was mid-fall
+   or off the deck they would die on the first frame after it, which is worse
+   than no window at all. So a recovery has to leave them somewhere they could
+   actually have been. */
+function recover(kind, o, side, g){
+  run.graceN = (run.graceN || 0) + 1;
+  run.freeze = K.GRACE_FREEZE;
+  run.shake  = (kind === 'hit' ? K.SHAKE_HIT : K.SHAKE_FALL) * K.GRACE_SHAKE_MUL;
+  /* the one cost that cannot shift the world: the near miss chain */
+  run.chain = 0; run.chainT = 0;
+  P.iframes = Math.max(P.iframes, K.GRACE_IFRAMES);
+
+  const tr = sampleTrack(P.z);
+
+  /* the same sparks the death would have thrown. spark() runs on Math.random,
+     not run.rnd, so none of this moves the seeded stream. */
+  if (kind === 'hit' && o){
+    o.dead = true;
+    spark(o.x + clamp(P.x - o.x, -o.hw, o.hw), surfaceY(o.z, o.x) + K.OBST_H * 0.5,
+          o.z, K.SPARK_HIT, K.SPARK_GRAZE_SPREAD);
+    run.flashO = o; run.flashT = K.GRACE_FLASH;
+  }
+  if (kind === 'fall'){
+    spark(tr.cx + (side || 1) * tr.hw, tr.y, P.z, K.SPARK_FALL, K.SPARK_RAIL_SPREAD);
+  }
+
+  /* ---- back inside the corridor ---- */
+  const lim = Math.max(tr.hw - K.P_HW, 1);
+  if (kind === 'fall'){
+    /* far enough in to still be there a moment later at full lock */
+    const inset = Math.min(lim, tr.hw * K.GRACE_INSET);
+    P.x  = clamp(P.x, tr.cx - inset, tr.cx + inset);
+    P.vx = 0;
+  } else {
+    P.x = clamp(P.x, tr.cx - lim, tr.cx + lim);
+  }
+
+  /* ---- back on the deck ---- */
+  const hole = (kind === 'gap') ? (g || gapAt(P.z)) : null;
+  if (hole){
+    /* Bounced out on the arc the lip itself would have given, rather than
+       teleported past the hole. Moving z would move where the generator is when
+       it next runs, and the track must not depend on how the run went. */
+    const v = speedNow();
+    const need = Math.max((hole.z1 - P.z) / Math.max(v * (1 - K.GAP_MARGIN), 1),
+                          K.GAP_T_MIN) * K.GRACE_GAP_CLEAR;
+    P.air = true; P.h = 0;
+    P.vy  = K.GRAV * need * 0.5 - tr.grade * v;
+    P.elev = trackY(P.z);
+    P.liftoff = K.LIFTOFF_STEPS;
+    spark(P.x, P.elev, P.z, K.SPARK_LAUNCH, K.SPARK_RAIL_SPREAD);
+  } else {
+    P.air = false; P.vy = 0; P.h = 0; P.liftoff = 0;
+    P.elev = surfaceY(P.z, P.x);
+  }
+  P.fallV = 0; P.fallY = 0;
+  /* render interpolation reads the previous frame's position: without this the
+     recovery draws as a smear from wherever they were */
+  P.px = P.x; P.pz = P.z; P.ph = P.h;
+}
+
 function die(kind, o, side, g){
+  /* every death funnels through here, so intercepting at the top covers all
+     four call sites and all three kinds at once */
+  if (graceActive()){ recover(kind, o, side, g); return; }
   run.overSec = secAt(P.z).type;
   try {
     /* Still counted, though nothing displays it any more: it costs one integer
@@ -1778,7 +1887,8 @@ function newRun(seed){
           chain:0, chainT:0, nearT:0, nearX:0, nearZ:0, best:0,
           daily:false, freeze:0, shake:0,
           over:false, overKind:null, overObst:null, overSide:0, overGap:null,
-          overX:0, overZ:0, flashO:null, flashT:0, inputLock:0 };
+          overX:0, overZ:0, flashO:null, flashT:0, inputLock:0,
+          graceN:0, graceDone:false };
   P = { x:0, z:0, vx:0, h:0, vy:0, elev:0, air:false, squash:0,
         pz:0, px:0, ph:0, liftoff:0,
 
@@ -1813,6 +1923,14 @@ function start(){
    ========================================================================== */
 function step(dt){
   run.t += dt;
+
+  /* The opening closes at GRACE_T, or at the first moment after it that the
+     player is somewhere they could carry on from, whichever is later, and never
+     later than GRACE_TAIL_MAX past it. Checked here, at the top of the step, so
+     it reads the state the previous step left: right after a recovery that is a
+     restored position, which is exactly the handover we want. */
+  if (!run.graceDone && run.t >= K.GRACE_T &&
+      (graceSafe() || run.t >= K.GRACE_T + K.GRACE_TAIL_MAX)) run.graceDone = true;
 
   const v = speedNow();
   const zPrev = P.z, xPrev = P.x;
@@ -1950,7 +2068,9 @@ function step(dt){
       if (sweptBox(o.z, K.OBST_D*0.5 + K.P_HD, o.x, o.hw + K.P_HW,
                    zPrev, P.z, xPrev, P.x) &&
           obstBlocks(o, P.h)){
-        if (P.save) consumeSave(o); else die('hit', o, 0);
+        /* during the opening the grace recovery takes the hit, so a pickup
+           collected in the first seconds is still there when it ends */
+        if (P.save && !graceActive()) consumeSave(o); else die('hit', o, 0);
         break;
       }
     }
