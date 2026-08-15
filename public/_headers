@@ -1,0 +1,7 @@
+# Cloudflare serves everything with max-age=0, must-revalidate by default, so
+# even a cached track costs a round trip before the first byte is usable. These
+# five filenames never change content: a new track means a new number, and a
+# changed track means a re-encode that would be given one. Nothing else is
+# touched, because a stale index.html would be far worse than a slow track.
+/music/*
+  Cache-Control: public, max-age=31536000, immutable

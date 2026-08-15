@@ -3699,7 +3699,11 @@ const MU = {
   REC_EXT: '.m4a',
   REC_GAIN: 3.6,          // relative to MASTER, which is set for the synth's own
                           //   raw levels rather than for a mastered file
-  REC_FADE_T: 2.0,        // s to bring a track up, so it never lands on the splash
+  REC_FADE_T: 1.0,        // s to bring a track up. Was 2, which left it near
+                          //   silent for two seconds after playback had already
+                          //   started. Long enough not to be a hard cut, short
+                          //   enough to feel immediate.
+  REC_PREFETCH: true,     // buffer the remembered track while the splash is up
   REC_STALL_T: 6.0,       // s without progress AFTER playback has begun. A track
                           //   that is still downloading also has a currentTime
                           //   that is not moving, so this clock only ever runs
@@ -4112,7 +4116,7 @@ function musBuild(){
   if (musEl || !AC || !auMaster) return;
   try {
     musEl = new Audio();
-    musEl.preload = 'none';       // nothing is fetched until a run asks for it
+    musEl.preload = 'none';       // until the splash asks for it, below
     musEl.loop = true;
     musEl.addEventListener('playing', musOnPlaying);
     musEl.addEventListener('error', musOnFail);
@@ -4130,6 +4134,29 @@ function musBuild(){
 /* Only ever the track being played. Never all five, never a prefetch of the
    next one, because the player is not going through them in order. */
 function musUrl(){ return MU.REC_PATH + (musTrack + 1) + MU.REC_EXT; }
+
+/* Called when the splash goes up. The player usually sits there for several
+   seconds before pressing play, and every one of them used to be wasted: the
+   src was only set inside musPlay(), so the download began at the worst
+   possible moment. This starts it early and lets the browser buffer.
+
+   It does not call play() and it does not resume the context, so the splash is
+   still silent. Only the remembered track is asked for, never all five, and if
+   the player skips to another one mid-run that becomes the remembered track and
+   the one fetched next time. */
+function musPrefetch(){
+  if (!MU.REC_ON || !MU.REC_PREFETCH || muMuted) return;
+  musBuild();
+  if (!musEl) return;
+  const url = musUrl();
+  try {
+    if (!musEl.src || musEl.src.indexOf(url) === -1){
+      musEl.preload = 'auto';
+      musEl.src = url;
+      musEl.load();
+    }
+  } catch(e){}
+}
 
 function musPlay(){
   if (!MU.REC_ON || muMuted || !AC) return;
@@ -4294,8 +4321,13 @@ function audioNewTrack(){
 function audioRunMusic(){
   if (MU.REC_ON){
     if (musState === 'playing' && musEl && !musEl.paused) return;
-    if (musState !== 'failed') musPlay();
-    else if (!musProcActive) musPlay();
+    /* Always another go. Now that the fetch starts while the splash is up, a
+       blip there can mark the track failed before the player has pressed
+       anything, and making them wait out REC_RETRY_T on the synth for that
+       would be a worse trade than the prefetch is worth. The start of a run is
+       the natural second chance. If it fails again the synth is already
+       playing and simply carries on. */
+    musPlay();
     if (!musProcActive) return;
   }
   audioProcTrack();
@@ -4336,7 +4368,9 @@ function audioToggle(){
   try { localStorage.setItem(MUTE_KEY, muMuted ? '1' : '0'); } catch(e){}
   /* stopping the music button stops the download too, rather than paying for
      bytes nobody is listening to */
-  if (muMuted) musPause(); else if (musWantPlay) musResume();
+  if (muMuted) musPause();
+  else if (musWantPlay) musResume();
+  else musPrefetch();          // unmuted before playing: start buffering now
   if (!AC){ if (!muMuted) audioInit(); return; }
   auMaster.gain.setTargetAtTime(muMuted ? 0 : MU.MASTER, AC.currentTime, 0.05);
   if (!muMuted && AC.state === 'suspended'){ muWant = true; muArm = true; AC.resume(); }
@@ -4529,6 +4563,7 @@ function boot(){
       if (hit === 'share' && state === 'dead'){ doShare(); e.preventDefault(); return; }
       if (hit === 'menu' && state === 'dead'){
         state = 'title'; paused = false; showChrome(true);
+        musPrefetch();
         UI.menu = null; UI.settings = null;
         previewRefresh();
         e.preventDefault(); return;
@@ -4586,6 +4621,12 @@ function boot(){
   newRun(dailyMode ? dailySeed() : (urlSeed !== null ? urlSeed : (Math.random()*2147483647)|0));
   state = 'title';
   requestAnimationFrame(frame);
+  /* After the splash has actually been painted, not before it. Called straight
+     from boot the fetch went out about 120ms ahead of the first frame, and the
+     splash should be on screen before anything else starts asking for the
+     network. One frame costs nothing here: the player is about to spend
+     seconds looking at it. */
+  requestAnimationFrame(function(){ requestAnimationFrame(musPrefetch); });
 }
 boot();
 </script>
