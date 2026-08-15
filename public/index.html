@@ -63,6 +63,10 @@
     -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
   }
   canvas{display:block;width:100%;height:100%;}
+  /* the canvas is what goes fullscreen, so it has to fill the fullscreen
+     viewport rather than the layout box it had a moment ago */
+  canvas:fullscreen{width:100%;height:100%;}
+  canvas:-webkit-full-screen{width:100%;height:100%;}
 
   /* Fixed, so it never enters layout flow and the canvas is never resized: the
      game is tuned against its own arena geometry. Hidden during play so it can
@@ -2327,6 +2331,44 @@ function setGeom(){
            barX: W*0.40, barW: W*0.46 };
 }
 /* returns a UI control if the tap landed on one, else null */
+/* ==========================================================================
+   FULLSCREEN
+
+   Read from the document, never tracked in a boolean of our own: the player can
+   leave with Escape, with the Android back gesture or with a system control,
+   and a flag would desync and draw the wrong icon.
+   ========================================================================== */
+function fsAvailable(){
+  if (!cv) return false;
+  const can = cv.requestFullscreen || cv.webkitRequestFullscreen;
+  /* fullscreenEnabled is the honest answer to "would this work here": it is
+     false on an iPhone, which has no Fullscreen API, and false in an iframe
+     that was not given allow="fullscreen". A control that does nothing is
+     worse than no control, so in both cases the button is not drawn and its
+     space is not reserved. */
+  const allowed = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+  return !!(can && allowed);
+}
+function fsOn(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+function fsToggle(){
+  if (!fsAvailable()) return;
+  try {
+    let p = null;
+    if (fsOn()){
+      p = document.exitFullscreen ? document.exitFullscreen()
+        : document.webkitExitFullscreen ? document.webkitExitFullscreen() : null;
+    } else {
+      p = cv.requestFullscreen ? cv.requestFullscreen()
+        : cv.webkitRequestFullscreen ? cv.webkitRequestFullscreen() : null;
+    }
+    /* rejects when the gesture has expired or permission is refused, and an
+       unhandled rejection is a console error */
+    if (p && p.catch) p.catch(function(){});
+  } catch(e){}
+}
+
 function uiHit(x, y){
   for (const k in UI){
     const r = UI[k];
@@ -3148,6 +3190,10 @@ function drawRunButtons(){
   const r = K.BTN_R*s, m = K.BTN_M*s, gap = K.BTN_GAP*s;
   const y = H - m - r;
   UI.pause = [m, y - r, r*2, r*2];
+  /* Next to pause, so the two audio controls stay together on the right. Null,
+     not disabled, where the API is unavailable. */
+  const fsOk = fsAvailable();
+  UI.full  = fsOk ? [m + r*2 + gap, y - r, r*2, r*2] : null;
   UI.skip  = [W - m - r*2, y - r, r*2, r*2];
   UI.mute  = [W - m - r*4 - gap, y - r, r*2, r*2];
   ctx.globalAlpha = K.BTN_A;
@@ -3171,6 +3217,27 @@ function drawRunButtons(){
      disabled control rather than as the switch that turns the music on again.
      This shows the STATE instead, the way every mute button does, and stays at
      full weight in both. */
+  if (fsOk){
+    const fx = m + r*3 + gap;
+    ctx.beginPath(); ctx.arc(fx, y, r, 0, Math.PI*2); ctx.stroke();
+    /* Four corner brackets. Out at the frame when there is room to open, pulled
+       in and reversed when there is room to close, so the two states are not
+       the same picture. */
+    const inFS = fsOn();
+    const fq = r*0.44, arm = fq*0.62, d = inFS ? -arm : arm;
+    for (let i = 0; i < 4; i++){
+      const ex = (i === 1 || i === 2) ? 1 : -1;
+      const ey = (i < 2) ? -1 : 1;
+      const cx2 = fx + ex * (inFS ? fq*0.40 : fq);
+      const cy2 = y  + ey * (inFS ? fq*0.40 : fq);
+      ctx.beginPath();
+      ctx.moveTo(cx2 - ex*d, cy2);
+      ctx.lineTo(cx2, cy2);
+      ctx.lineTo(cx2, cy2 - ey*d);
+      ctx.stroke();
+    }
+  }
+
   const mx = W - m - r*3 - gap;
   const q  = r*0.32;
   ctx.beginPath(); ctx.arc(mx, y, r, 0, Math.PI*2); ctx.stroke();
@@ -3641,6 +3708,11 @@ const MU = {
   REC_RETRY_T: 25,        // s before a failed track gets another go. A hiccup
                           //   must not silence real music for the session.
   REC_DUCK_T: 0.35,       // s to pull a failed track down before the synth takes over
+  REC_POKE_T: 0.5,        // s between asking a paused element to play again.
+                          //   The first play() can be refused, and a refusal is
+                          //   not a failure, so nothing was ever asking twice:
+                          //   the music then waited for the mute button to be
+                          //   toggled, which is exactly what was reported.
   REC_NOSRC_T: 2.0        // s a "no source" network state has to persist before it
                           //   is believed. It reads 3 for a moment after src is
                           //   set, before resource selection has run, and acting
@@ -4020,7 +4092,7 @@ let muMuted = false, muWant = false, muArm = false;
 let musEl = null, musSrc = null, musGain = null;
 let musTrack = 0;                 // 0 based; the file is musTrack + 1
 let musState = 'idle';            // idle | loading | playing | failed
-let musLastT = 0, musStillT = 0, musRetryT = 0, musLoadT = 0;
+let musLastT = 0, musStillT = 0, musRetryT = 0, musLoadT = 0, musPokeT = 0;
 let musWantPlay = false;          // a run has asked for music at least once
 let musProcActive = false;        // is the synth the thing currently sounding?
 
@@ -4118,6 +4190,27 @@ function musOnFail(){
 
 function musTick(dt){
   if (!MU.REC_ON || muMuted) return;
+
+  /* If a run has asked for music and the element is not running, ask again.
+     Deliberately a condition rather than a diagnosis: it covers a context that
+     was still resuming when play() was called, a play() the browser refused,
+     and a device that wanted a second gesture, without any of them having to be
+     told apart. The same shape as the muWant loop that retries AC.resume().
+     Calling play() on an element that already has its src does not restart a
+     download that is in flight, and once it is playing the condition is false,
+     so this does not keep firing. */
+  musPokeT += dt;
+  if (musPokeT >= MU.REC_POKE_T){
+    musPokeT = 0;
+    if (musWantPlay && musEl && musEl.paused && musState !== 'failed' &&
+        AC && AC.state === 'running'){
+      try {
+        const pr = musEl.play();
+        if (pr && pr.catch) pr.catch(function(){});   // still not a failure
+      } catch(e){}
+    }
+  }
+
   if (musState === 'failed'){
     if (musRetryT > 0){
       musRetryT -= dt;
@@ -4412,6 +4505,8 @@ function boot(){
   derive();
   resize();
   addEventListener('resize', resize);
+  addEventListener('fullscreenchange', resize);
+  addEventListener('webkitfullscreenchange', resize);
   addEventListener('orientationchange', () => setTimeout(resize, 120));
 
   cv.addEventListener('pointerdown', e => {
@@ -4454,6 +4549,7 @@ function boot(){
         if (paused) audioPause(); else audioResume();
         e.preventDefault(); return;
       }
+      if (h2 === 'full'){ fsToggle(); e.preventDefault(); return; }
       if (h2 === 'skip'){ audioNewTrack(); e.preventDefault(); return; }
       if (h2 === 'mute'){ audioToggle(); e.preventDefault(); return; }
       if (paused){ paused = false; audioResume(); e.preventDefault(); return; }
