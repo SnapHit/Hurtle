@@ -109,6 +109,9 @@ const TEACH_KEY = "hurtle_teach_v1";
    rather than migrated: they describe dials that no longer mean the same thing. */
 const OPT_KEY   = "hurtle_opts_v2";
 const MUTE_KEY  = "hurtle_mute_v1";
+/* Its own key. Folding the track choice into an existing preference would mean
+   that when the default moves, everyone who had set one is silently inverted. */
+const TRACK_KEY = "hurtle_track_v1";
 /* keys the game shipped under before it had a name, read once so nobody loses
    a record to a rename */
 const OLD_KEYS  = { best:"descent_best_v2", diag:"descent_diag_v1" };
@@ -1938,7 +1941,7 @@ function newRun(seed){
 }
 function start(){
   audioStart();
-  audioNewTrack();
+  audioRunMusic();
   const sd = dailyMode ? dailySeed()
            : (urlSeed !== null ? urlSeed : (Math.random()*2147483647)|0);
   newRun(sd);
@@ -3617,7 +3620,34 @@ const MU = {
   MASTER: 0.085,          // overall level. Background, not foreground.
   INT_TAU: 0.55,          // s of smoothing on intensity, so the music lifts with
                           //   the run rather than snapping to it
-  INT_IDLE: 0.10          // where it sits on the title and after a death
+  INT_IDLE: 0.10,         // where it sits on the title and after a death
+
+  /* --- the five recorded tracks. Streamed through an HTMLAudioElement and
+     routed into the same graph, so gain, muting and the fades all still apply.
+     Deliberately NOT decodeAudioData: three minutes of PCM is tens of megabytes
+     and the device this is built for is a five year old Chromebook. --- */
+  REC_ON: true,
+  REC_N: 5,               // files on disk, track-1 to track-5
+  REC_PATH: '/music/track-',
+  REC_EXT: '.m4a',
+  REC_GAIN: 3.6,          // relative to MASTER, which is set for the synth's own
+                          //   raw levels rather than for a mastered file
+  REC_FADE_T: 2.0,        // s to bring a track up, so it never lands on the splash
+  REC_STALL_T: 6.0,       // s without progress AFTER playback has begun. A track
+                          //   that is still downloading also has a currentTime
+                          //   that is not moving, so this clock only ever runs
+                          //   once something has actually played.
+  REC_STALL_MIN: 0.02,    // s of movement that counts as progress
+  REC_RETRY_T: 25,        // s before a failed track gets another go. A hiccup
+                          //   must not silence real music for the session.
+  REC_DUCK_T: 0.35,       // s to pull a failed track down before the synth takes over
+  REC_NOSRC_T: 2.0        // s a "no source" network state has to persist before it
+                          //   is believed. It reads 3 for a moment after src is
+                          //   set, before resource selection has run, and acting
+                          //   on that killed a perfectly healthy track three
+                          //   milliseconds into a run: the same premature
+                          //   give-up as the currentTime trap, wearing a
+                          //   different hat.
 };
 /* ==========================================================================
    MUSIC
@@ -3976,6 +4006,164 @@ function auApply(){
 /* --- the game side: lifecycle, muting, and one track per run --- */
 let muMuted = false, muWant = false, muArm = false;
 
+/* ==========================================================================
+   THE RECORDED TRACKS
+
+   Five files, streamed. Track 1 for everyone the first time, the skip button
+   steps through and wraps, the choice is remembered, and a track loops when it
+   ends because nobody listens to five in order and a player who picked a
+   favourite wants to hear it.
+
+   Nothing here ever blocks the game. A run starts whether or not audio is
+   ready, and the music fades in when it arrives.
+   ========================================================================== */
+let musEl = null, musSrc = null, musGain = null;
+let musTrack = 0;                 // 0 based; the file is musTrack + 1
+let musState = 'idle';            // idle | loading | playing | failed
+let musLastT = 0, musStillT = 0, musRetryT = 0, musLoadT = 0;
+let musWantPlay = false;          // a run has asked for music at least once
+let musProcActive = false;        // is the synth the thing currently sounding?
+
+function musLoadPref(){
+  let v = null;
+  try { v = localStorage.getItem(TRACK_KEY); } catch(e){}
+  const i = (v === null) ? 0 : (parseInt(v, 10) - 1);
+  /* Unreadable storage means track one, every visit, which is the right way
+     round for this to fail. */
+  musTrack = (isFinite(i) && i >= 0 && i < MU.REC_N) ? i : 0;
+}
+function musSavePref(){
+  try { localStorage.setItem(TRACK_KEY, String(musTrack + 1)); } catch(e){}
+}
+
+function musBuild(){
+  if (musEl || !AC || !auMaster) return;
+  try {
+    musEl = new Audio();
+    musEl.preload = 'none';       // nothing is fetched until a run asks for it
+    musEl.loop = true;
+    musEl.addEventListener('playing', musOnPlaying);
+    musEl.addEventListener('error', musOnFail);
+    musSrc  = AC.createMediaElementSource(musEl);
+    musGain = AC.createGain();
+    musGain.gain.value = 0;
+    musSrc.connect(musGain);
+    musGain.connect(auMaster);    // so mute and the master fade still own it
+  } catch(e){
+    musEl = null;
+    musOnFail();
+  }
+}
+
+/* Only ever the track being played. Never all five, never a prefetch of the
+   next one, because the player is not going through them in order. */
+function musUrl(){ return MU.REC_PATH + (musTrack + 1) + MU.REC_EXT; }
+
+function musPlay(){
+  if (!MU.REC_ON || muMuted || !AC) return;
+  musWantPlay = true;
+  musBuild();
+  if (!musEl) return;
+  const url = musUrl();
+  musState  = 'loading';
+  musStillT = 0; musLastT = 0; musRetryT = 0; musLoadT = 0;
+  try {
+    if (musGain){
+      const now = AC.currentTime;
+      musGain.gain.cancelScheduledValues(now);
+      musGain.gain.setValueAtTime(0, now);
+    }
+    /* Comparing the resolved src against the relative one, so re-entering with
+       the same track does not restart a download that is already in flight. */
+    if (!musEl.src || musEl.src.indexOf(url) === -1){ musEl.src = url; musEl.load(); }
+    else if (musEl.readyState > 0){ try { musEl.currentTime = 0; } catch(e){} }
+    const pr = musEl.play();
+    /* An autoplay refusal is not a broken file. The next run asks again. */
+    if (pr && pr.catch) pr.catch(function(){});
+  } catch(e){ musOnFail(); }
+}
+
+function musOnPlaying(){
+  musState = 'playing';
+  musRetryT = 0;
+  /* Real music won, so the synth stands down. This is also the only place it
+     ever does, which is what stops a genre switch a couple of seconds into a
+     first run: the synth is never started while a track is merely arriving. */
+  if (musProcActive){ musProcActive = false; auSilence(); }
+  if (musGain && AC){
+    const now = AC.currentTime;
+    musGain.gain.cancelScheduledValues(now);
+    musGain.gain.setValueAtTime(musGain.gain.value, now);
+    musGain.gain.linearRampToValueAtTime(MU.REC_GAIN, now + MU.REC_FADE_T);
+  }
+}
+
+/* A genuine failure: an error event, a dead network state, or a stall that
+   began after playback had already started. Waiting is not failing. */
+function musOnFail(){
+  if (musState === 'failed') return;
+  musState  = 'failed';
+  musRetryT = MU.REC_RETRY_T;
+  musStillT = 0;
+  if (musGain && AC){
+    const now = AC.currentTime;
+    musGain.gain.cancelScheduledValues(now);
+    musGain.gain.setValueAtTime(musGain.gain.value, now);
+    musGain.gain.linearRampToValueAtTime(0, now + MU.REC_DUCK_T);
+  }
+  /* the synth picks it up from here, re-anchored so it does not try to catch
+     up on a scheduler clock that has run on without it */
+  if (!musProcActive){ musProcActive = true; muArm = true; }
+}
+
+function musTick(dt){
+  if (!MU.REC_ON || muMuted) return;
+  if (musState === 'failed'){
+    if (musRetryT > 0){
+      musRetryT -= dt;
+      /* the route back: a temporary hiccup does not cost the whole session */
+      if (musRetryT <= 0 && musWantPlay) musPlay();
+    }
+    return;
+  }
+  if (!musEl) return;
+  if (musState !== 'playing'){
+    /* Still arriving. NOT a stall, and the difference matters: a downloading
+       track has a currentTime that is not advancing either, so a detector that
+       watched only that would give up on a healthy file about twelve seconds
+       into a first run and never play real music again.
+
+       A genuine failure arrives as an error event, which is immediate and
+       unambiguous. This is only the backstop for a source the browser quietly
+       gave up on without one, and it has to wait: networkState reads NO_SOURCE
+       for a moment after src is set, before resource selection has run. */
+    musLoadT += dt;
+    if (musEl.networkState === 3 /* NETWORK_NO_SOURCE */ && musLoadT > MU.REC_NOSRC_T) musOnFail();
+    return;
+  }
+  /* Playback has actually begun and then stopped: now a stall clock means
+     something. */
+  if (musEl.paused){ musStillT = 0; musLastT = musEl.currentTime; return; }
+  const now = musEl.currentTime;
+  if (Math.abs(now - musLastT) > MU.REC_STALL_MIN){ musLastT = now; musStillT = 0; return; }
+  musStillT += dt;
+  if (musStillT > MU.REC_STALL_T) musOnFail();
+}
+
+function musPause(){ try { if (musEl && !musEl.paused) musEl.pause(); } catch(e){} }
+function musResume(){
+  if (!MU.REC_ON || muMuted || !musEl || musState === 'failed') return;
+  try { const pr = musEl.play(); if (pr && pr.catch) pr.catch(function(){}); } catch(e){}
+}
+function musStop(){
+  try {
+    if (musEl){ musEl.pause(); musEl.removeAttribute('src'); musEl.load(); }
+  } catch(e){}
+}
+/* true when the synth is the thing that should be sounding */
+function musProcOn(){ return !MU.REC_ON || musProcActive; }
+
+
 function audioOn(){ return !muMuted; }
 
 function audioInit(){
@@ -3995,9 +4183,34 @@ function audioInit(){
 }
 function audioWarm(){ if (!AC && !muMuted) audioInit(); }
 
-/* A different track every run, never the same one twice running. */
-/* A fresh track, and the old one actually stops. */
+/* The skip button and KeyN: one step through the five, wrapping, remembered.
+   When the recorded tracks are the ones sounding this is all it does; the synth
+   only gets a fresh pick when it is the thing being heard. */
 function audioNewTrack(){
+  if (MU.REC_ON){
+    musTrack = (musTrack + 1) % MU.REC_N;
+    musSavePref();
+    musPlay();
+    if (!musProcActive) return;
+  }
+  audioProcTrack();
+}
+
+/* At the top of a run: carry on with the remembered track, or start it. This is
+   not the skip button, so it does not advance. */
+function audioRunMusic(){
+  if (MU.REC_ON){
+    if (musState === 'playing' && musEl && !musEl.paused) return;
+    if (musState !== 'failed') musPlay();
+    else if (!musProcActive) musPlay();
+    if (!musProcActive) return;
+  }
+  audioProcTrack();
+}
+
+/* A different synth track every run, never the same one twice running. */
+/* A fresh track, and the old one actually stops. */
+function audioProcTrack(){
   if (!AC) return;
   auSilence();
   const n = AU_TRACKS.length;
@@ -4028,6 +4241,9 @@ function audioStart(){
 function audioToggle(){
   muMuted = !muMuted;
   try { localStorage.setItem(MUTE_KEY, muMuted ? '1' : '0'); } catch(e){}
+  /* stopping the music button stops the download too, rather than paying for
+     bytes nobody is listening to */
+  if (muMuted) musPause(); else if (musWantPlay) musResume();
   if (!AC){ if (!muMuted) audioInit(); return; }
   auMaster.gain.setTargetAtTime(muMuted ? 0 : MU.MASTER, AC.currentTime, 0.05);
   if (!muMuted && AC.state === 'suspended'){ muWant = true; muArm = true; AC.resume(); }
@@ -4037,7 +4253,7 @@ function audioLoadMute(){
   try { stored = localStorage.getItem(MUTE_KEY); } catch(e){}
   muMuted = stored === null ? FRAMED : (stored === '1');
 }
-function audioSuspend(){ muWant = false; try { if (AC && AC.state === 'running') AC.suspend(); } catch(e){} }
+function audioSuspend(){ muWant = false; musPause(); try { if (AC && AC.state === 'running') AC.suspend(); } catch(e){} }
 /* Pausing the game pauses the music. Suspending freezes the audio clock as well,
    so nothing is scheduled into a gap, and arming on the way back makes the
    scheduler pick up from the moment it actually starts running again rather than
@@ -4047,8 +4263,10 @@ function audioResume(){
   if (muMuted || !AC) return;
   muWant = true; muArm = true;
   try { AC.resume(); } catch(e){}
+  musResume();
 }
 function audioClose(){
+  musStop();
   if (!AC) return;
   try { if (auMaster) auMaster.gain.value = 0; AC.close(); } catch(e){}
   AC = null; auMaster = null;
@@ -4077,10 +4295,14 @@ function audioTick(){
     return;
   }
   if (muArm){ muArm = false; auStep = 0; auNextT = AC.currentTime + 0.02; }
+  musTick(lastFt);
   const want = muTargetIntensity();
   auSpeed += (want - auSpeed) * (1 - Math.exp(-lastFt / MU.INT_TAU));
   if ((muFrame++ & 7) === 0){ auApply(); auPrune(); }
-  auRun();
+  /* The synth only sounds when it is the fallback. While a recorded track is
+     merely on its way, nothing plays: starting the synth there and swapping it
+     out on arrival is an audible genre change two seconds into the run. */
+  if (musProcOn()) auRun();
 }
 let muFrame = 0;
 
@@ -4259,6 +4481,7 @@ function boot(){
 
   loadBest();
   audioLoadMute();
+  musLoadPref();
   audioBindLifecycle();
   audioWarm();
   captureOptBase();
