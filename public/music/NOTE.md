@@ -3,6 +3,12 @@
 Five original tracks, played in the order they are numbered. Track 1 is
 the default every player starts on.
 
+Tracks 1 and 3 were swapped on 15 August 2026, by renaming the files as
+this note says to. The storage key was bumped to hurtle_track_v2 in the
+same change: it stores a track number, and leaving it alone would have
+handed anyone who had chosen track 3 a different song under the same
+number.
+
 Reordering the playlist is done by renaming files, not by a mapping
 table in code. A mapping table is something a person has to reason
 about in six months.
