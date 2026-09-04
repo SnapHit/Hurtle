@@ -61,9 +61,6 @@
   .wm use{stroke-width:62}
   .wm-foot{width:min(212px,58vw);margin:0 auto;
     filter:drop-shadow(0 0 4px rgba(255,148,36,.8)) drop-shadow(0 0 18px rgba(255,148,36,.32))}
-  .wm-marq{width:54%;margin:0 auto;color:var(--amber);
-    filter:drop-shadow(0 0 4px rgba(255,148,36,.85)) drop-shadow(0 0 15px rgba(255,148,36,.42))}
-  .wm-marq use{stroke-width:62}
 
   /* ---------- hero ---------- */
   .hero{position:relative;width:100%;height:100dvh;min-height:420px}
@@ -138,7 +135,7 @@
   /* ---------- cabinet ---------- */
   .cab{width:calc(var(--pw) * var(--cabx));max-width:100%}
   .cab-body{
-    position:relative;padding:0 0 calc(var(--ph) * .04);
+    position:relative;padding:0 0 calc(var(--ph) * .022);
     border-radius:calc(var(--pw) * .1) calc(var(--pw) * .1) calc(var(--pw) * .03) calc(var(--pw) * .03);
     background:linear-gradient(180deg,#2a5b8c 0%,#1d4370 38%,#122c4d 74%,#0b1e38 100%);
     box-shadow:
@@ -181,8 +178,8 @@
       linear-gradient(180deg, rgba(255,255,255,.10) 0 1.5%, transparent 6%);
   }
   .marquee{
-    position:relative;margin:calc(var(--pw) * .07) calc(var(--pw) * .07) 0;
-    padding:calc(var(--pw) * .048) 0;border-radius:calc(var(--pw) * .045);
+    position:relative;margin:calc(var(--pw) * .045) calc(var(--pw) * .07) 0;
+    padding:calc(var(--pw) * .040) 0;border-radius:calc(var(--pw) * .045);
     text-align:center;
     background:linear-gradient(180deg,#1b1006 0%,#2a1708 55%,#150c04 100%);
     box-shadow:inset 0 0 0 1px rgba(255,148,36,.5),0 0 26px -6px rgba(255,148,36,.55);
@@ -198,8 +195,25 @@
     0%{opacity:.10} 38%{opacity:.62} 44%{opacity:0} 47%{opacity:.85}
     51%{opacity:.06} 55%{opacity:.7} 72%{opacity:.34} 100%{opacity:.10}
   }
+  /* The name is the sign AND the way out to the real game. It has to read as
+     lit tube, not as a hyperlink: no underline, no link colour. Sized from the
+     phone like everything else and held on one line, so the longest name still
+     sits inside the panel at 320px. */
+  .marq{
+    position:relative;z-index:1;display:block;text-decoration:none;
+    font:900 calc(var(--pw) * .10)/1 "Arial Black",Impact,system-ui,sans-serif;
+    letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;
+    color:#ffe9c9;
+    text-shadow:0 0 5px rgba(255,148,36,.9),0 0 16px rgba(255,148,36,.5);
+    transition:color .18s ease,text-shadow .18s ease;
+  }
+  .marq:hover,.marq:focus-visible{
+    color:#fff;
+    text-shadow:0 0 7px rgba(255,214,150,1),0 0 22px rgba(255,148,36,.75);
+  }
+  .marq:focus-visible{outline:2px solid var(--amber);outline-offset:6px}
   .aperture{
-    position:relative;margin:calc(var(--pw) * .07) auto 0;width:calc(var(--pw) * var(--apx));
+    position:relative;margin:calc(var(--pw) * .045) auto 0;width:calc(var(--pw) * var(--apx));
     max-width:calc(100% - var(--pw) * .14);
     padding:calc(var(--pw) * .09) 0;border-radius:calc(var(--pw) * .05);
     background:#01040a;
@@ -330,18 +344,38 @@
   body.zoomed .shrink{display:grid}
   .shrink svg{width:18px;height:18px;fill:none;stroke:var(--amber-lit);stroke-width:2.6;
     stroke-linecap:round}
+  /* Same materials as the close button so it belongs, but a labelled pill at
+     the OPPOSITE corner rather than a 40px icon: it has to be unmistakably not
+     the way out of full screen. Top left also keeps it clear of the bottom
+     corners, where Hurtle keeps its own pause and mute buttons and Drift Fever
+     its note button. */
+  .bail{
+    display:none;position:fixed;z-index:201;
+    top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));
+    align-items:center;gap:7px;height:40px;padding:0 13px;border-radius:12px;
+    text-decoration:none;background:rgba(6,13,24,.86);
+    box-shadow:inset 0 0 0 1px rgba(255,148,36,.55);
+    color:var(--amber-lit);font:800 9px/1 system-ui,sans-serif;letter-spacing:.14em;
+    text-transform:uppercase;
+  }
+  body.zoomed .bail{display:inline-flex}
+  .bail svg{width:12px;height:12px;fill:none;stroke:var(--amber-lit);stroke-width:2.4;
+    stroke-linecap:round;stroke-linejoin:round}
+  .bail:hover,.bail:focus-visible{background:rgba(255,148,36,.20)}
 
   /* The control panel: a printed overlay with real parts standing on it. */
   .deck{
-    position:relative;margin:calc(var(--pw) * .075) calc(var(--pw) * .035) 0;
-    padding:calc(var(--pw) * .022) calc(var(--pw) * .028);
+    position:relative;margin:calc(var(--pw) * .045) calc(var(--pw) * .035) 0;
+    padding:calc(var(--pw) * .010) calc(var(--pw) * .028);
     border-radius:calc(var(--pw) * .05);
     background:linear-gradient(180deg,#101f31 0%,#0a1725 60%,#060e18 100%);
     box-shadow:inset 0 3px 9px rgba(0,0,0,.7),0 2px 0 rgba(0,0,0,.5);
   }
   .panel{display:block;width:100%;height:auto}
 
-  /* coin door, because nothing says arcade faster */
+  /* coin door, because nothing says arcade faster. It is also the least
+     meaningful thing on the machine, so on a phone it is what gets cut to put
+     the whole cabinet on one screen. */
   .coin{
     position:relative;margin:calc(var(--pw) * .05) calc(var(--pw) * .17) 0;
     height:calc(var(--pw) * .115);border-radius:calc(var(--pw) * .02);
@@ -358,14 +392,35 @@
     border-radius:calc(var(--pw) * .01);background:linear-gradient(180deg,#1b2b3d,#0b1420);
     box-shadow:inset 0 0 0 1px rgba(150,180,210,.4);
   }
+  @media (max-width:599px){ .coin{display:none} }
 
+  /* The quieter of the two routes out: the studio card's arcade button,
+     centred under the machine. The marquee is the loud one, and this stays
+     below it: same 11px type, a fifth of the marquee's lit area.
+
+     position:relative IS LOAD BEARING and is the whole reason this read as
+     switched off. .cab-body is positioned, so its 0 40px 80px -30px
+     rgba(0,0,0,.95) drop shadow paints over anything in flow beneath it, and
+     the button sits 13px under that edge. Measured: a flat rgb(255,0,0) test
+     fill rendered rgb(172,12,13) there, a third of the brightness eaten by a
+     shadow nobody could see. Lifting it into the positioned layer is what
+     turns it on; the warmer fill below is the smaller half of the change.
+
+     The fill keeps #ff9424 across the face instead of falling away to
+     #a04d06, and the outer amber shadow puts it in the same light as the
+     marquee and the cabinet outline. Size is deliberately unchanged so the
+     cabinet still fits a 412x915 screen. */
   .cab .visit{
-    display:block;margin:18px auto 0;width:max-content;
-    font:800 11px/1 system-ui,sans-serif;letter-spacing:.18em;
-    color:var(--amber);text-decoration:none;border-bottom:1px solid rgba(255,148,36,.45);
-    padding-bottom:5px;
+    position:relative;z-index:1;
+    display:flex;margin:13px auto 0;width:max-content;
+    background:radial-gradient(circle at 34% 26%,#ffd9a2,#ff9424 62%,#d06a0c);
+    color:#1c0c00;
+    box-shadow:0 0 0 1px rgba(255,214,150,.65),
+               0 0 18px -4px rgba(255,148,36,.6),
+               0 0 40px -16px rgba(255,148,36,.45),
+               inset 0 1px 0 rgba(255,255,255,.55);
   }
-  .cab .visit:hover{color:var(--amber-lit);border-bottom-color:var(--amber-lit)}
+  .cab .visit:hover,.cab .visit:focus-visible{filter:brightness(1.06)}
 
   /* The studio. Its own mark across the top, the facts underneath, in the
      same materials as the machines. */
@@ -564,7 +619,7 @@
 
         <dl class="hi">
           <div class="row"><dt>GAMES SHIPPED</dt><span class="dots"></span><dd>04</dd></div>
-          <div class="row"><dt>IN DEVELOPMENT</dt><span class="dots"></span><dd>01</dd></div>
+          <div class="row"><dt>IN DEVELOPMENT</dt><span class="dots"></span><dd>03</dd></div>
           <div class="row zero"><dt>ADS SERVED</dt><span class="dots"></span><dd>00</dd></div>
           <div class="row zero"><dt>SIGN-UPS REQUIRED</dt><span class="dots"></span><dd>00</dd></div>
           <div class="row zero"><dt>INSTALL SIZE</dt><span class="dots"></span><dd>0 MB</dd></div>
@@ -620,6 +675,11 @@
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>
 </button>
 
+<a class="bail" id="bail" target="_blank" rel="noopener">
+  <span></span>
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>
+</a>
+
 <footer class="foot">
   <svg class="mark-glyph" viewBox="0 0 64 60" aria-hidden="true">
     <g fill="none" stroke="#00e5ff" stroke-linecap="round" stroke-linejoin="round">
@@ -647,6 +707,12 @@
 /* ---------------- the shelf. One entry per game. ---------------- */
 const GAMES = [
   {
+    slug: 'driftfever',
+    name: 'Drift Fever',
+    src:  'play/driftfever.html',
+    site: 'https://driftfever.com'
+  },
+  {
     slug: 'hurtle',
     name: 'Hurtle',
     src:  'play/hurtle.html',
@@ -663,12 +729,26 @@ const GAMES = [
 const rack = document.getElementById('rack');
 const frames = [];
 
+/* Hold a cabinet's card up until its frame has actually loaded, so a heavy game
+   is the card you just tapped rather than a black rectangle. The card is
+   absolutely positioned over the frame, and the "is there an iframe already"
+   guard makes a second tap a no-op while it is up. The timer is the last
+   resort: if load never arrives the card goes anyway, which is exactly the
+   behaviour this replaced, rather than leaving someone tapping a card that
+   cannot answer. Both the first tap and the tap that revives an unloaded
+   cabinet go through here, because both of them are a wait. */
+function holdUntilLoaded(f, card){
+  const drop = () => { clearTimeout(timer); card.remove(); };
+  const timer = setTimeout(drop, 20000);
+  f.addEventListener('load', drop, { once: true });
+}
+
 for (const g of GAMES){
   const cab = document.createElement('article');
   cab.className = 'cab';
   cab.innerHTML =
     '<div class="cab-body">' +
-      '<div class="marquee"><svg class="wm wm-marq" viewBox="0 0 4789 719" role="img" aria-label="SnapHit"><use href="#wm"/></svg></div>' +
+      '<div class="marquee"><a class="marq" target="_blank" rel="noopener"></a></div>' +
       '<div class="aperture">' +
         '<div class="phone">' +
           '<span class="key vol v1"></span><span class="key vol v2"></span>' +
@@ -694,18 +774,33 @@ for (const g of GAMES){
         '<span class="slot"></span><span class="ret"></span><span class="slot"></span>' +
       '</div>' +
     '</div>' +
-    '<a class="visit" target="_blank" rel="noopener">PLAY IT FULL SIZE</a>';
+    '<a class="op-btn visit" target="_blank" rel="noopener">' +
+      '<span></span>' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h11.2l-4.6-4.6L12 5l7 7-7 7-1.4-1.4 4.6-4.6H4z"/></svg>' +
+    '</a>';
+
+  /* Both ways out carry the referral, so the destination's logs can tell a
+     visitor from the shelf apart from one who arrived on their own. */
+  const out = g.site.replace(/\/+$/, '') + '/?from=snaphit';
+  const host = g.site.replace(/^https?:\/\//, '').replace(/\/+$/, '');
 
   cab.querySelector('.attract .title').textContent = g.name;
+
+  const marq = cab.querySelector('.marq');
+  marq.textContent = g.name;
+  marq.href = out;
+  marq.setAttribute('aria-label', 'Play ' + g.name + ' on ' + host);
+
   const visit = cab.querySelector('.visit');
-  visit.href = g.site;
-  visit.setAttribute('aria-label', 'Open ' + g.name + ' on its own site');
+  visit.href = out;
+  visit.querySelector('span').textContent = 'PLAY ' + g.name.toUpperCase();
+  visit.setAttribute('aria-label', 'Play ' + g.name + ' on ' + host);
 
   const screen = cab.querySelector('.screen');
   const phone = cab.querySelector('.phone');
   const grow = cab.querySelector('.grow');
   const attract = cab.querySelector('.attract');
-  grow.addEventListener('click', () => zoom(phone));
+  grow.addEventListener('click', () => zoom(phone, g.name, host, out));
   attract.setAttribute('aria-label', 'Play ' + g.name);
 
   // Nothing loads until it is asked for. Four live canvases on one page
@@ -718,7 +813,7 @@ for (const g of GAMES){
     f.setAttribute('scrolling', 'no');
     f.setAttribute('allow', 'accelerometer; gyroscope; fullscreen');
     screen.appendChild(f);
-    attract.remove();
+    holdUntilLoaded(f, attract);
     phone.classList.add('live');
     frames.push({ el: f, src: g.src, screen, phone, name: g.name });
     watch(f);
@@ -735,45 +830,91 @@ for (const g of GAMES){
 }
 
 /* ---------------- unloading whatever scrolled away ---------------- */
-function watch(el){
-  if (!('IntersectionObserver' in window)) return;
-  const io = new IntersectionObserver(en => {
-    for (const e of en){
-      if (document.body.classList.contains('zoomed')) continue;
-      if (!e.isIntersecting && e.target.src){
-        e.target.removeAttribute('src');            // stop the loop dead
-        const rec = frames.find(f => f.el === e.target);
-        if (rec){
-          const again = document.createElement('button');
-          again.className = 'attract';
-          again.type = 'button';
-          again.setAttribute('aria-label', 'Play ' + rec.name);
-          again.innerHTML =
-            '<span class="title">' + rec.name + '</span>' +
-            '<span class="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3 L21 12 L6 21 Z"/></svg></span>' +
-            '<span class="hint">TAP TO PLAY</span>';
-          again.addEventListener('click', () => {
-            rec.el.src = rec.src; again.remove(); rec.phone.classList.add('live');
-          });
-          rec.phone.classList.remove('live');
-          rec.screen.appendChild(again);
-        }
-        io.unobserve(e.target);
-      }
-    }
-  }, { rootMargin: '120px' });
-  io.observe(el);
+/* One observer for every cabinet, and nothing is ever unobserved. A frame that
+   was unloaded and then revived is therefore still being watched, which is the
+   whole point: the old code observed per frame and unobserved on the way out,
+   so a cabinet played a second time ran off screen forever. The callback reads
+   current state rather than trusting the record, because a record only ever
+   says what changed, not what is true now. */
+const MARGIN = 120;
+const io = ('IntersectionObserver' in window)
+  ? new IntersectionObserver(() => sweep(), { rootMargin: MARGIN + 'px' })
+  : null;
+
+function watch(el){ if (io) io.observe(el); }
+
+/* The observer is only a nudge. A record says what changed at the moment it was
+   queued, which is not the same as what is true by the time it is delivered: a
+   cabinet that scrolled away while another was full screen arrives here after
+   the collapse has already brought it back on screen. So the record is thrown
+   away unread and every frame is judged on its current rectangle. */
+function offScreen(el){
+  const r = el.getBoundingClientRect();
+  return r.bottom < -MARGIN || r.top  > innerHeight + MARGIN ||
+         r.right  < -MARGIN || r.left > innerWidth  + MARGIN;
+}
+/* Deferred to the next frame, and only ever once per frame. Collapsing moves a
+   phone back into flow and the page settles over the frames that follow, so a
+   sweep run the instant the class comes off reads a rectangle that is already
+   out of date and unloads a cabinet the player is looking at. */
+let sweepQueued = false;
+function sweep(){
+  if (sweepQueued) return;
+  sweepQueued = true;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    sweepQueued = false;
+    for (const rec of frames) if (offScreen(rec.el)) park(rec);
+  }));
+}
+
+/* Unload one cabinet and put its card back. Safe to call at any time and as
+   often as you like: it does nothing to a frame that is already unloaded, and
+   nothing to the one being played full screen. Guarding that single frame is
+   what lets every other cabinet still unload while one is expanded — the old
+   blanket skip threw the record away, and no replacement ever arrived. */
+function park(rec){
+  if (!rec.el.src) return;           // already unloaded
+  if (rec.phone === zoomed) return;  // the run the player is in, full screen
+  rec.el.removeAttribute('src');     // stop the loop dead
+  const again = document.createElement('button');
+  again.className = 'attract';
+  again.type = 'button';
+  again.setAttribute('aria-label', 'Play ' + rec.name);
+  again.innerHTML =
+    '<span class="title">' + rec.name + '</span>' +
+    '<span class="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3 L21 12 L6 21 Z"/></svg></span>' +
+    '<span class="hint">TAP TO PLAY</span>';
+  again.addEventListener('click', () => {
+    rec.el.src = rec.src;
+    holdUntilLoaded(rec.el, again);
+    rec.phone.classList.add('live');
+  });
+  rec.phone.classList.remove('live');
+  rec.screen.appendChild(again);
 }
 
 /* ---------------- full screen, without the Fullscreen API ---------------- */
 const shrinkBtn = document.getElementById('shrink');
+const bailBtn = document.getElementById('bail');
 let zoomed = null;
 
-function zoom(phone){
+/* Focus is deliberately left where it is. Pulling it to the close button meant
+   a desktop player's arrow keys stopped reaching the game the moment they went
+   full screen, and Hurtle clears its steering state on blur, so a run died
+   mid-flight. The keyboard exit is Tab, which carries out of the frame and into
+   the parent, and Escape while the parent holds focus. Escape is not bound
+   inside the frame on purpose: both games already use it to pause. */
+function zoom(phone, name, host, out){
   zoomed = phone;
   phone.classList.add('big');
   document.body.classList.add('zoomed');
-  shrinkBtn.focus();
+  /* Playing full screen is the moment somebody is most likely to want the real
+     thing, so the way out lives here too. Opposite corner from the close
+     button, and labelled with the destination, because a thumb going for close
+     must not leave the site by accident. */
+  bailBtn.href = out;
+  bailBtn.querySelector('span').textContent = host;
+  bailBtn.setAttribute('aria-label', 'Play ' + name + ' on ' + host);
 }
 function unzoom(){
   if (!zoomed) return;
@@ -782,6 +923,11 @@ function unzoom(){
   const g = zoomed.querySelector('.grow');
   zoomed = null;
   if (g) g.focus();
+  /* The cabinet may be out of view now that the phone is back in flow. Chrome
+     does report that as a change, so this is belt and braces, but it keeps the
+     decision here rather than resting on a record arriving. Harmless either
+     way: sweep judges by the rectangle, and does nothing to a frame on screen. */
+  sweep();
 }
 shrinkBtn.addEventListener('click', unzoom);
 addEventListener('keydown', e => { if (e.key === 'Escape') unzoom(); });
