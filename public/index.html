@@ -3729,30 +3729,26 @@ function draw(){
 /* ==========================================================================
    MUSIC
 
-   Synthesised, not streamed. The zero-external-requests rule has held since the
-   first session and it is not worth breaking for audio: a lo-fi hip hop loop is
-   a slow swung drum pattern, a jazzy chord every bar or two, a root note under
-   it, and a lot of filtering. All of that is cheaper to generate than to fetch.
+   Five recorded tracks, streamed. There was a synthesiser here for most of this
+   project's life and it is gone: it existed because the zero-external-requests
+   rule ruled out fetching audio, and the tracks are same origin, so it does not.
 
-   It is also endless and never repeats exactly, which suits a game you put on to
-   zone out to. Four progressions, each in its own key and tempo, cycling, with
-   the pattern varying bar to bar from the same kind of seeded noise the track
-   generator uses.
+   There is deliberately no fallback. A player whose network drops now gets
+   silence, which is a neutral failure, rather than a different and worse
+   soundtrack, which is a substitution nobody asked for. Silence is the resting
+   state and not a terminal one: a failed track is still retried and the skip
+   button still moves on.
 
    Nothing here touches the simulation. If AudioContext is missing or blocked,
    every entry point is a no-op and the game plays in silence.
    ========================================================================== */
 const MU = {
   MASTER: 0.085,          // overall level. Background, not foreground.
-  INT_TAU: 0.55,          // s of smoothing on intensity, so the music lifts with
-                          //   the run rather than snapping to it
-  INT_IDLE: 0.10,         // where it sits on the title and after a death
 
   /* --- the five recorded tracks. Streamed through an HTMLAudioElement and
      routed into the same graph, so gain, muting and the fades all still apply.
      Deliberately NOT decodeAudioData: three minutes of PCM is tens of megabytes
      and the device this is built for is a five year old Chromebook. --- */
-  REC_ON: true,
   REC_N: 5,               // files on disk, track-1 to track-5
   REC_PATH: '/music/track-',
   REC_EXT: '.m4a',
@@ -3784,128 +3780,12 @@ const MU = {
                           //   give-up as the currentTime trap, wearing a
                           //   different hat.
 };
-/* ==========================================================================
-   MUSIC
-
-   Ten procedural tracks, still synthesised, still no audio assets and no
-   external requests. Every name is prefixed au or AU because the engine and the
-   game both wanted ctx, tick, start, draw, step, speed, kick and hat, and a
-   silent collision there would have been very hard to find.
-
-   One knob drives the lot: auSpeed, 0 to 1, taken from where the run currently
-   sits on its own speed curve. It opens the tone filter, pushes the saturation,
-   lifts the delay feedback, brings the pad and lead up, adds an open hat and a
-   half-bar snare near the top, and stretches the tempo by up to a third. So the
-   music does not merely play under the game, it reports on it.
-   ========================================================================== */
-const AU_SCALES = {
-  minorPent:[0,3,5,7,10],
-  dorian:[0,2,3,5,7,9,10],
-  minor:[0,2,3,5,7,8,10],
-  phrygian:[0,1,3,5,7,8,10],
-  mixo:[0,2,4,5,7,9,10],
-  blues:[0,3,5,6,7,10]
-};
-const auMtof = m => 440*Math.pow(2,(m-69)/12);
-function auDeg(root,scale,d){
-  const s=AU_SCALES[scale], n=s.length;
-  const oct=Math.floor(d/n), i=((d%n)+n)%n;
-  return root+s[i]+12*oct;
-}
-// "x..x" -> [0,3].  Uppercase X = accent.
-function auParse(p){
-  const out=[];
-  for(let i=0;i<p.length;i++){
-    const c=p[i];
-    if(c==='x') out.push({s:i,v:0.75});
-    else if(c==='X') out.push({s:i,v:1});
-    else if(c==='o') out.push({s:i,v:0.4});   // ghost
-    else if(c==='O') out.push({s:i,v:0.6,open:true}); // open auHat
-  }
-  return out;
-}
-
-const AU_TRACKS=[
-{name:"Grease Pole",style:"Deep funk",bpm:96,swing:.18,root:40,scale:"minorPent",len:16,
- auKick:"X..x..X.....x...",auSnare:"....X..o..o.X..o",auHat:"xoxoxOxoxoxoxOxo",
- bass:[[0,0,3],[3,0,1],[6,-2,2],[8,2,1],[10,0,1],[11,1,2],[14,-3,2]],
- chord:[[2,[0,2,4,6],2],[10,[1,3,5,7],2]],chordWave:"square",
- lead:[[4,7,1],[5,6,1],[7,4,2],[12,7,1],[13,9,1],[15,7,1]],leadVoice:"auClav",
- bassCfg:{wave:"sawtooth",cut:240,q:9},cutBase:520},
-
-{name:"Neon Boulevard",style:"Outrun synthwave",bpm:118,swing:0,root:45,scale:"minor",len:16,
- auKick:"X...x...X...x...",auSnare:"....X.......X...",auHat:"..x...x...x...x.",auClap:"....X.......X...",
- bass:[[0,0,2],[2,0,2],[4,0,2],[6,0,2],[8,-2,2],[10,-2,2],[12,-1,2],[14,-1,2]],
- chord:[[0,[0,2,4],8],[8,[-2,0,2],8]],chordWave:"sawtooth",pad:true,
- lead:[[0,7,1],[2,9,1],[4,11,1],[6,9,1],[8,7,1],[10,9,1],[12,11,1],[14,14,1]],leadVoice:"auPluck",
- bassCfg:{wave:"sawtooth",cut:320,q:4},cutBase:700},
-
-{name:"Acid Descent",style:"Acid techno",bpm:130,swing:0,root:36,scale:"phrygian",len:16,
- auKick:"X...X...X...X...",auSnare:"....x.......x...",auHat:"xxxxxxxxxxxxxxxx",auClap:"....X.......X...",
- bass:[[0,0,1],[1,0,1],[3,7,1],[4,0,1],[6,3,1],[7,0,1],[9,10,1],[10,0,1],[12,5,1],[13,0,1],[15,7,1]],
- acid:true,bassCfg:{wave:"sawtooth",cut:180,q:17},cutBase:340},
-
-{name:"Bad Circuit",style:"Electro 808",bpm:108,swing:.08,root:41,scale:"minor",len:16,
- auKick:"X.....x...X.....",auSnare:"....X.......X...",auHat:"x.x.x.x.x.x.x.x.",auClap:"....X..o....X...",
- bass:[[0,0,2],[2,7,1],[4,0,1],[6,-1,2],[8,0,2],[10,3,1],[12,-2,2],[14,0,1]],
- chord:[[6,[0,2,4,6],1],[14,[-1,1,3,5],1]],chordWave:"square",
- lead:[[3,12,1],[7,10,1],[11,12,1],[15,14,1]],leadVoice:"auClav",
- bassCfg:{wave:"square",cut:260,q:7},cutBase:480},
-
-{name:"Chrome Slap",style:"Jazz funk",bpm:104,swing:.2,root:46,scale:"dorian",len:16,
- auKick:"X..x....X.x.....",auSnare:"....X.oo..o.X.o.",auHat:"xoxoxoxoxoxoxoxo",
- bass:[[0,0,2],[2,4,1],[3,2,1],[5,0,1],[6,-3,2],[8,0,1],[9,2,1],[11,4,1],[12,6,1],[14,4,2]],
- chord:[[4,[2,4,6,8],3],[12,[0,2,4,6],3]],chordWave:"triangle",pad:true,
- lead:[[6,9,1],[7,8,1],[9,6,2],[13,9,1],[14,11,1]],leadVoice:"auClav",
- bassCfg:{wave:"sawtooth",cut:300,q:6},cutBase:820},
-
-{name:"Terminal Velocity",style:"Drum and bass",bpm:172,swing:0,root:38,scale:"minor",len:16,
- auKick:"X.......X...x...",auSnare:"....X.......X..x",auHat:"xoxoxoxOxoxoxoxO",
- bass:[[0,-7,4],[4,-7,2],[6,-5,2],[8,-7,4],[12,-3,2],[14,-7,2]],
- chord:[[0,[0,2,4,6],6],[8,[-3,-1,1,3],6]],chordWave:"sawtooth",pad:true,
- lead:[[10,11,1],[11,9,1],[15,7,1]],leadVoice:"auPluck",
- bassCfg:{wave:"sine",cut:150,q:2},cutBase:600},
-
-{name:"Thumb Drive",style:"Electro boogie",bpm:114,swing:.12,root:41,scale:"dorian",len:16,
- auKick:"X.....x.X.....x.",auSnare:"....X..o....X..o",auHat:"XoxoXoxOXoxoXoxO",auClap:"....X.......X...",
- bass:[[0,0,1],[1,7,1],[3,0,1],[4,7,1],[6,0,1],[7,2,1],[8,0,1],[9,7,1],[11,0,1],[12,7,1],[14,0,1],[15,-2,1]],
- chord:[[2,[0,2,4,6,8],1],[6,[-1,1,3,5],1],[10,[0,2,4,6,8],1],[13,[1,3,5,7],1]],chordWave:"sawtooth",
- lead:[[5,7,1],[7,9,1],[12,11,1],[13,9,1],[15,7,1]],leadVoice:"auClav",
- bassCfg:{wave:"sawtooth",cut:280,q:8},cutBase:600},
-
-{name:"Deep End",style:"Deep house",bpm:122,swing:.1,root:41,scale:"dorian",len:16,
- auKick:"X...X...X...X...",auSnare:"....x.......x...",auHat:"..O...O...O...O.",auClap:"....X.......X...",
- bass:[[0,-7,2],[3,-7,1],[6,-5,2],[8,-7,2],[11,-3,1],[14,-7,2]],
- chord:[[2,[0,2,4,6],3],[6,[1,3,5,7],2],[10,[0,2,4,6],3],[14,[-1,1,3,5],2]],chordWave:"triangle",pad:true,
- bassCfg:{wave:"sine",cut:200,q:3},cutBase:640},
-
-{name:"Glass Highway",style:"Italo disco",bpm:126,swing:0,root:45,scale:"minor",len:16,
- auKick:"X...X...X...X...",auSnare:"....X.......X...",auHat:"..x.O.x...x.O.x.",auClap:"....x.......x...",
- bass:[[0,-7,1],[2,0,1],[4,-7,1],[6,0,1],[8,-5,1],[10,2,1],[12,-6,1],[14,1,1]],
- chord:[[0,[0,2,4],4],[8,[-1,1,3],4]],chordWave:"sawtooth",pad:true,
- lead:[[0,7,1],[1,11,1],[2,14,1],[3,11,1],[4,7,1],[5,11,1],[6,14,1],[7,16,1],
-       [8,6,1],[9,10,1],[10,13,1],[11,10,1],[12,6,1],[13,10,1],[14,13,1],[15,15,1]],
- leadVoice:"auPluck",bassCfg:{wave:"sawtooth",cut:340,q:5},cutBase:760},
-
-{name:"Hot Wire",style:"Breakbeat funk",bpm:108,swing:.17,root:38,scale:"dorian",len:16,
- auKick:"X..X....x.X.....",auSnare:"....X.oo..x.X.o.",auHat:"xxoxOxxoxxoxOxxo",
- bass:[[0,0,2],[3,0,1],[5,-2,2],[8,0,1],[9,3,1],[11,0,1],[12,-3,2],[15,0,1]],
- chord:[[2,[1,3,5,7],1],[6,[0,2,4,6],1],[10,[1,3,5,7],1],[13,[0,2,4,6],1],[15,[0,2,4,6],1]],chordWave:"sawtooth",
- lead:[[6,7,1],[7,9,2],[14,11,1],[15,12,1]],leadVoice:"auClav",
- bassCfg:{wave:"sawtooth",cut:220,q:11},cutBase:700}
-];
-
-/* Engine state. These were declared between the track table and the functions in
-   the source file, and my first slice cut straight through them. */
-let AC=null, auNoise=null, auMaster=null, auDrum=null, auBass=null, auLead=null, auPad=null,
-    auTone=null, auShaper=null, auDelay=null, auFb=null;
-let auCur=0, auStep=0, auNextT=0, auSpeed=0;
-/* Every source the engine starts, so a track change can silence them. The
-   scheduler only looks 0.12s ahead, so the overlap was never queued notes: it
-   was long voices already ringing. A pad is held for most of its duration and
-   the chords run for seconds, so switching tracks left the old one sounding
-   over the new one. Wrapping the two factory methods catches every creation
-   site in one place rather than hoping eleven of them were all found. */
+let AC=null, auMaster=null;
+/* Every source started on this context, so anything still ringing can be
+   stopped. The synth is gone and the recorded track is an element rather than a
+   node the graph owns, so the only thing this now holds is the silent buffer
+   the unlock gesture plays. Wrapping the two factory methods is still the way
+   to catch every creation site in one place. */
 const auLive = [];
 function auWatch(){
   const co = AC.createOscillator.bind(AC), cb = AC.createBufferSource.bind(AC);
@@ -3925,11 +3805,6 @@ function auSilence(){
     try { auLive[i].stop(t + 0.02); } catch(e){}
   }
   auLive.length = 0;
-  /* and duck the delay, or the old track echoes on through the new one */
-  if (auFb){
-    auFb.gain.cancelScheduledValues(t);
-    auFb.gain.setValueAtTime(0, t);
-  }
 }
 function auPrune(){
   const t = AC.currentTime;
@@ -3944,202 +3819,17 @@ function auPrune(){
 function auBuild(){
   if(AC) return;
   AC=new (window.AudioContext||window.webkitAudioContext)();
-  const n=AC.sampleRate*2, b=AC.createBuffer(1,n,AC.sampleRate), d=b.getChannelData(0);
-  for(let i=0;i<n;i++) d[i]=Math.random()*2-1;
-  auNoise=b;
-
+  /* The limiter stays: the recorded tracks are mastered but REC_GAIN lifts them
+     well above unity against MASTER, and this is what catches the peaks. */
   const lim=AC.createDynamicsCompressor();
   lim.threshold.value=-8; lim.knee.value=4; lim.ratio.value=12;
   lim.attack.value=.003; lim.release.value=.2;
   lim.connect(AC.destination);
 
   auMaster=AC.createGain(); auMaster.gain.value=.85; auMaster.connect(lim);
-
-  auShaper=AC.createWaveShaper(); auShaper.curve=auDrive(0); auShaper.oversample="2x";
-  auShaper.connect(auMaster);
-
-  auTone=AC.createBiquadFilter();
-  auTone.type="lowpass"; auTone.frequency.value=700; auTone.Q.value=.7;
-  auTone.connect(auShaper);
-
-  auDelay=AC.createDelay(1); auDelay.delayTime.value=.28;
-  auFb=AC.createGain(); auFb.gain.value=.28;
-  auDelay.connect(auFb); auFb.connect(auDelay); auDelay.connect(auTone);
-
-  auDrum=AC.createGain(); auDrum.gain.value=.9;  auDrum.connect(auMaster);
-  auBass=AC.createGain(); auBass.gain.value=.85; auBass.connect(auShaper);
-  auLead=AC.createGain(); auLead.gain.value=.5;  auLead.connect(auTone);
-  auPad =AC.createGain(); auPad.gain.value=.28;  auPad.connect(auTone);
 }
-function auDrive(k){
-  const n=1024,c=new Float32Array(n),a=k*90;
-  for(let i=0;i<n;i++){const x=i*2/n-1;c[i]=(1+a)*x/(1+a*Math.abs(x));}
-  return c;
-}
-
-/* --- voices --- */
-function auKick(t,v){
-  const o=AC.createOscillator(),g=AC.createGain();
-  o.type="sine";
-  o.frequency.setValueAtTime(165,t);
-  o.frequency.exponentialRampToValueAtTime(44,t+.07);
-  g.gain.setValueAtTime(0,t);
-  g.gain.linearRampToValueAtTime(v,t+.004);
-  g.gain.exponentialRampToValueAtTime(.0008,t+.34);
-  o.connect(g).connect(auDrum); o.start(t); o.stop(t+.36);
-}
-function auSnare(t,v){
-  const s=AC.createBufferSource();s.buffer=auNoise;
-  const f=AC.createBiquadFilter();f.type="bandpass";f.frequency.value=1900;f.Q.value=.9;
-  const g=AC.createGain();
-  g.gain.setValueAtTime(v*.6,t); g.gain.exponentialRampToValueAtTime(.0008,t+.15);
-  s.connect(f).connect(g).connect(auDrum); s.start(t); s.stop(t+.18);
-  const o=AC.createOscillator(),og=AC.createGain();
-  o.type="triangle"; o.frequency.setValueAtTime(200,t);
-  o.frequency.exponentialRampToValueAtTime(125,t+.08);
-  og.gain.setValueAtTime(v*.45,t); og.gain.exponentialRampToValueAtTime(.0008,t+.1);
-  o.connect(og).connect(auDrum); o.start(t); o.stop(t+.12);
-}
-function auHat(t,v,open){
-  const s=AC.createBufferSource();s.buffer=auNoise;
-  const f=AC.createBiquadFilter();f.type="highpass";f.frequency.value=7800;
-  const g=AC.createGain(); const dur=open?.24:.042;
-  g.gain.setValueAtTime(v*.3,t); g.gain.exponentialRampToValueAtTime(.0008,t+dur);
-  s.connect(f).connect(g).connect(auDrum); s.start(t); s.stop(t+dur+.02);
-}
-function auClap(t,v){
-  for(let i=0;i<3;i++){
-    const s=AC.createBufferSource();s.buffer=auNoise;
-    const f=AC.createBiquadFilter();f.type="bandpass";f.frequency.value=1250;f.Q.value=1.6;
-    const g=AC.createGain(); const st=t+i*.011;
-    g.gain.setValueAtTime(v*.4,st); g.gain.exponentialRampToValueAtTime(.0008,st+.05);
-    s.connect(f).connect(g).connect(auDrum); s.start(st); s.stop(st+.07);
-  }
-  const s=AC.createBufferSource();s.buffer=auNoise;
-  const f=AC.createBiquadFilter();f.type="bandpass";f.frequency.value=1050;f.Q.value=1.1;
-  const g=AC.createGain();
-  g.gain.setValueAtTime(v*.25,t+.03); g.gain.exponentialRampToValueAtTime(.0008,t+.2);
-  s.connect(f).connect(g).connect(auDrum); s.start(t+.03); s.stop(t+.22);
-}
-function auBassV(t,freq,dur,v,cfg,acid){
-  const o=AC.createOscillator(); o.type=cfg.wave;
-  const f=AC.createBiquadFilter(); f.type="lowpass"; f.Q.value=cfg.q;
-  const open=cfg.cut*(acid?(5+auSpeed*10):3.2);
-  f.frequency.setValueAtTime(Math.min(open,12000),t);
-  f.frequency.exponentialRampToValueAtTime(Math.max(cfg.cut*(1+auSpeed*1.5),60),t+dur*.75);
-  const g=AC.createGain();
-  o.frequency.setValueAtTime(freq,t);
-  g.gain.setValueAtTime(0,t);
-  g.gain.linearRampToValueAtTime(v,t+.006);
-  g.gain.setValueAtTime(v,t+dur*.6);
-  g.gain.exponentialRampToValueAtTime(.0008,t+dur);
-  o.connect(f).connect(g).connect(auBass); o.start(t); o.stop(t+dur+.03);
-}
-function auClav(t,freq,v){
-  const o=AC.createOscillator(); o.type="square";
-  const f=AC.createBiquadFilter(); f.type="bandpass"; f.frequency.value=freq*2.6; f.Q.value=3.5;
-  const g=AC.createGain();
-  o.frequency.value=freq;
-  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v*.5,t+.003);
-  g.gain.exponentialRampToValueAtTime(.0008,t+.13);
-  o.connect(f).connect(g); g.connect(auLead); g.connect(auDelay);
-  o.start(t); o.stop(t+.15);
-}
-function auPluck(t,freq,v){
-  const o=AC.createOscillator(); o.type="sawtooth";
-  const f=AC.createBiquadFilter(); f.type="lowpass"; f.Q.value=6;
-  f.frequency.setValueAtTime(freq*7,t);
-  f.frequency.exponentialRampToValueAtTime(freq*1.5,t+.2);
-  const g=AC.createGain();
-  o.frequency.value=freq;
-  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v*.4,t+.005);
-  g.gain.exponentialRampToValueAtTime(.0008,t+.28);
-  o.connect(f).connect(g); g.connect(auLead); g.connect(auDelay);
-  o.start(t); o.stop(t+.3);
-}
-function auSq(t,freq,v){
-  const o=AC.createOscillator(); o.type="square";
-  const g=AC.createGain();
-  o.frequency.value=freq;
-  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v*.28,t+.004);
-  g.gain.exponentialRampToValueAtTime(.0008,t+.11);
-  o.connect(g); g.connect(auLead); g.connect(auDelay);
-  o.start(t); o.stop(t+.13);
-}
-function auChord(t,freqs,dur,v,wave,pad){
-  freqs.forEach((fr,i)=>{
-    [-6,6].forEach(det=>{
-      const o=AC.createOscillator(); o.type=wave;
-      o.frequency.value=fr; o.detune.value=det;
-      const g=AC.createGain();
-      const a=pad?.06:.008, r=pad?dur*.9:dur*.5;
-      g.gain.setValueAtTime(0,t);
-      g.gain.linearRampToValueAtTime(v*.16/freqs.length,t+a);
-      g.gain.exponentialRampToValueAtTime(.0006,t+r+.05);
-      o.connect(g).connect(pad?auPad:auLead);
-      o.start(t); o.stop(t+r+.1);
-    });
-  });
-}
-
-/* --- scheduling --- */
-function auStepDur(tr){ return 60/(tr.bpm*(1+auSpeed*.35))/4; }
-
-function auSchedule(tr,i,t){
-  const L=tr.len;
-  const at=(pat,fn)=>{ if(!pat)return; auParse(pat).forEach(h=>{ if(h.s%L===i) fn(t,h.v,h.open); }); };
-  at(tr.kick,(t,v)=>auKick(t,v));
-  at(tr.snare,(t,v)=>auSnare(t,v));
-  if(auSpeed>.12||!tr.clap) at(tr.hat,(t,v,o)=>auHat(t,v,o||(auSpeed>.55&&Math.random()<.15)));
-  at(tr.clap,(t,v)=>auClap(t,v));
-
-  (tr.bass||[]).forEach(([s,d,len])=>{
-    if(s%L!==i) return;
-    auBassV(t,auMtof(auDeg(tr.root,tr.scale,d)),auStepDur(tr)*len*.95,.5,tr.bassCfg,tr.acid);
-  });
-  (tr.chord||[]).forEach(([s,ds,len])=>{
-    if(s%L!==i) return;
-    if(tr.pad&&auSpeed<.08) return;
-    auChord(t,ds.map(d=>auMtof(auDeg(tr.root+12,tr.scale,d))),auStepDur(tr)*len,.9,tr.chordWave||"sawtooth",tr.pad);
-  });
-  if(auSpeed>.3||!tr.pad){
-    (tr.lead||[]).forEach(([s,d,len])=>{
-      if(s%L!==i) return;
-      const f=auMtof(auDeg(tr.root+12,tr.scale,d));
-      const v=.8;
-      if(tr.leadVoice==="auClav") auClav(t,f,v);
-      else if(tr.leadVoice==="square") auSq(t,f,v);
-      else auPluck(t,f,v);
-    });
-  }
-  if(auSpeed>.75 && i%4===2) auHat(t,.35,true);
-  if(auSpeed>.9 && i%8===6) auSnare(t,.3);
-}
-
-function auRun(){
-  const tr=AU_TRACKS[auCur];
-  while(auNextT < AC.currentTime+.12){
-    const sw=(auStep%2===1)?auStepDur(tr)*tr.swing:0;
-    auSchedule(tr,auStep,auNextT+sw);
-    auNextT+=auStepDur(tr);
-    auStep=(auStep+1)%tr.len;
-  }
-}
-
-function auApply(){
-  if(!AC) return;
-  const tr=AU_TRACKS[auCur];
-  const cut=tr.cutBase*Math.pow(9,auSpeed);
-  auTone.frequency.setTargetAtTime(Math.min(cut,15000),AC.currentTime,.06);
-  auShaper.curve=auDrive((tr.dirty?.25:0)+auSpeed*.55);
-  auFb.gain.setTargetAtTime(.18+auSpeed*.22,AC.currentTime,.1);
-  auPad.gain.setTargetAtTime(.2+auSpeed*.18,AC.currentTime,.1);
-  auLead.gain.setTargetAtTime(.36+auSpeed*.3,AC.currentTime,.1);
-}
-
-
 /* --- the game side: lifecycle, muting, and one track per run --- */
-let muMuted = false, muWant = false, muArm = false;
+let muMuted = false, muWant = false;
 
 /* ==========================================================================
    THE RECORDED TRACKS
@@ -4157,7 +3847,6 @@ let musTrack = 0;                 // 0 based; the file is musTrack + 1
 let musState = 'idle';            // idle | loading | playing | failed
 let musLastT = 0, musStillT = 0, musRetryT = 0, musLoadT = 0, musPokeT = 0;
 let musWantPlay = false;          // a run has asked for music at least once
-let musProcActive = false;        // is the synth the thing currently sounding?
 
 function musLoadPref(){
   let v = null;
@@ -4204,7 +3893,7 @@ function musUrl(){ return MU.REC_PATH + (musTrack + 1) + MU.REC_EXT; }
    the player skips to another one mid-run that becomes the remembered track and
    the one fetched next time. */
 function musPrefetch(){
-  if (!MU.REC_ON || !MU.REC_PREFETCH || muMuted) return;
+  if (!MU.REC_PREFETCH || muMuted) return;
   musBuild();
   if (!musEl) return;
   const url = musUrl();
@@ -4218,7 +3907,7 @@ function musPrefetch(){
 }
 
 function musPlay(){
-  if (!MU.REC_ON || muMuted || !AC) return;
+  if (muMuted || !AC) return;
   musWantPlay = true;
   musBuild();
   if (!musEl) return;
@@ -4244,10 +3933,6 @@ function musPlay(){
 function musOnPlaying(){
   musState = 'playing';
   musRetryT = 0;
-  /* Real music won, so the synth stands down. This is also the only place it
-     ever does, which is what stops a genre switch a couple of seconds into a
-     first run: the synth is never started while a track is merely arriving. */
-  if (musProcActive){ musProcActive = false; auSilence(); }
   if (musGain && AC){
     const now = AC.currentTime;
     musGain.gain.cancelScheduledValues(now);
@@ -4257,7 +3942,11 @@ function musOnPlaying(){
 }
 
 /* A genuine failure: an error event, a dead network state, or a stall that
-   began after playback had already started. Waiting is not failing. */
+   began after playback had already started. Waiting is not failing.
+
+   Failing now means going quiet, not swapping in something else. The gain is
+   still ramped down rather than cut, because a track that stalls mid-bar is
+   still making a noise and a hard stop on it is its own kind of glitch. */
 function musOnFail(){
   if (musState === 'failed') return;
   musState  = 'failed';
@@ -4269,13 +3958,10 @@ function musOnFail(){
     musGain.gain.setValueAtTime(musGain.gain.value, now);
     musGain.gain.linearRampToValueAtTime(0, now + MU.REC_DUCK_T);
   }
-  /* the synth picks it up from here, re-anchored so it does not try to catch
-     up on a scheduler clock that has run on without it */
-  if (!musProcActive){ musProcActive = true; muArm = true; }
 }
 
 function musTick(dt){
-  if (!MU.REC_ON || muMuted) return;
+  if (muMuted) return;
 
   /* If a run has asked for music and the element is not running, ask again.
      Deliberately a condition rather than a diagnosis: it covers a context that
@@ -4331,7 +4017,7 @@ function musTick(dt){
 
 function musPause(){ try { if (musEl && !musEl.paused) musEl.pause(); } catch(e){} }
 function musResume(){
-  if (!MU.REC_ON || muMuted || !musEl || musState === 'failed') return;
+  if (muMuted || !musEl || musState === 'failed') return;
   try { const pr = musEl.play(); if (pr && pr.catch) pr.catch(function(){}); } catch(e){}
 }
 function musStop(){
@@ -4339,10 +4025,6 @@ function musStop(){
     if (musEl){ musEl.pause(); musEl.removeAttribute('src'); musEl.load(); }
   } catch(e){}
 }
-/* true when the synth is the thing that should be sounding */
-function musProcOn(){ return !MU.REC_ON || musProcActive; }
-
-
 function audioOn(){ return !muMuted; }
 
 function audioInit(){
@@ -4363,49 +4045,24 @@ function audioInit(){
 function audioWarm(){ if (!AC && !muMuted) audioInit(); }
 
 /* The skip button and KeyN: one step through the five, wrapping, remembered.
-   When the recorded tracks are the ones sounding this is all it does; the synth
-   only gets a fresh pick when it is the thing being heard. */
+   It steps whether or not anything is sounding, so a player sitting in silence
+   because one file will not load can still move to one that will. */
 function audioNewTrack(){
-  if (MU.REC_ON){
-    musTrack = (musTrack + 1) % MU.REC_N;
-    musSavePref();
-    musPlay();
-    if (!musProcActive) return;
-  }
-  audioProcTrack();
+  musTrack = (musTrack + 1) % MU.REC_N;
+  musSavePref();
+  musPlay();
 }
 
 /* At the top of a run: carry on with the remembered track, or start it. This is
    not the skip button, so it does not advance. */
 function audioRunMusic(){
-  if (MU.REC_ON){
-    if (musState === 'playing' && musEl && !musEl.paused) return;
-    /* Always another go. Now that the fetch starts while the splash is up, a
-       blip there can mark the track failed before the player has pressed
-       anything, and making them wait out REC_RETRY_T on the synth for that
-       would be a worse trade than the prefetch is worth. The start of a run is
-       the natural second chance. If it fails again the synth is already
-       playing and simply carries on. */
-    musPlay();
-    if (!musProcActive) return;
-  }
-  audioProcTrack();
-}
-
-/* A different synth track every run, never the same one twice running. */
-/* A fresh track, and the old one actually stops. */
-function audioProcTrack(){
-  if (!AC) return;
-  auSilence();
-  const n = AU_TRACKS.length;
-  /* a straight draw from everything except what is playing, so it is properly
-     random rather than a fixed step from wherever it happened to be */
-  let pick = Math.floor(Math.random() * (n - 1));
-  if (pick >= auCur) pick++;
-  auCur  = pick;
-  auStep = 0;
-  auNextT = AC.currentTime + 0.02;
-  auApply();
+  if (musState === 'playing' && musEl && !musEl.paused) return;
+  /* Always another go. The fetch starts while the splash is up, so a blip there
+     can mark the track failed before the player has pressed anything, and
+     making them wait out REC_RETRY_T in silence for that would be a worse trade
+     than the prefetch is worth. The start of a run is the natural second
+     chance. If it fails again the run is simply quiet. */
+  musPlay();
 }
 
 function audioStart(){
@@ -4418,9 +4075,7 @@ function audioStart(){
     sN.buffer = b; sN.connect(AC.destination);
     sN.start(AC.currentTime); sN.stop(AC.currentTime + 0.001);
   } catch(e){}
-  muWant = true; muArm = true;
-  auStep = 0;
-  auNextT = AC.currentTime + 0.02;
+  muWant = true;
 }
 function audioToggle(){
   muMuted = !muMuted;
@@ -4432,7 +4087,7 @@ function audioToggle(){
   else musPrefetch();          // unmuted before playing: start buffering now
   if (!AC){ if (!muMuted) audioInit(); return; }
   auMaster.gain.setTargetAtTime(muMuted ? 0 : MU.MASTER, AC.currentTime, 0.05);
-  if (!muMuted && AC.state === 'suspended'){ muWant = true; muArm = true; AC.resume(); }
+  if (!muMuted && AC.state === 'suspended'){ muWant = true; AC.resume(); }
 }
 function audioLoadMute(){
   let stored = null;
@@ -4440,14 +4095,12 @@ function audioLoadMute(){
   muMuted = stored === null ? FRAMED : (stored === '1');
 }
 function audioSuspend(){ muWant = false; musPause(); try { if (AC && AC.state === 'running') AC.suspend(); } catch(e){} }
-/* Pausing the game pauses the music. Suspending freezes the audio clock as well,
-   so nothing is scheduled into a gap, and arming on the way back makes the
-   scheduler pick up from the moment it actually starts running again rather than
-   from wherever the clock had got to. */
+/* Pausing the game pauses the music, and suspending the context stops the clock
+   with it rather than leaving it running under a paused element. */
 function audioPause(){ audioSuspend(); }
 function audioResume(){
   if (muMuted || !AC) return;
-  muWant = true; muArm = true;
+  muWant = true;
   try { AC.resume(); } catch(e){}
   musResume();
 }
@@ -4466,11 +4119,6 @@ function audioBindLifecycle(){
   });
 }
 
-/* where the run currently sits on its own speed curve, 0 to 1 */
-function muTargetIntensity(){
-  if (state !== 'play' || !run) return MU.INT_IDLE;
-  return clamp((curveV() - K.V_START) / Math.max(K.V_MAX - K.V_START, 1), 0, 1);
-}
 function audioTick(){
   if (!AC || muMuted) return;
   /* resume() is asynchronous and the context is still suspended when it
@@ -4480,15 +4128,8 @@ function audioTick(){
     if (muWant){ try { AC.resume(); } catch(e){} }
     return;
   }
-  if (muArm){ muArm = false; auStep = 0; auNextT = AC.currentTime + 0.02; }
   musTick(lastFt);
-  const want = muTargetIntensity();
-  auSpeed += (want - auSpeed) * (1 - Math.exp(-lastFt / MU.INT_TAU));
-  if ((muFrame++ & 7) === 0){ auApply(); auPrune(); }
-  /* The synth only sounds when it is the fallback. While a recorded track is
-     merely on its way, nothing plays: starting the synth there and swapping it
-     out on arrival is an audible genre change two seconds into the run. */
-  if (musProcOn()) auRun();
+  if ((muFrame++ & 7) === 0) auPrune();
 }
 let muFrame = 0;
 
