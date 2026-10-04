@@ -86,6 +86,22 @@ Determinism is the thing most worth protecting: the same seed must produce the
 same run, byte for byte, or the daily track stops being comparable between
 players.
 
+## The CrazyGames copy
+
+`python3 tools/build_crazygames.py` writes `dist/hurtle-crazygames.zip`, the file
+uploaded at developer.crazygames.com. It is packaging, not a build step for the
+site: it reads `public/` and never writes to it, and `dist/` is ignored by git.
+
+The copy differs from the site through one line, `const PORTAL = null;`, which
+the script sets. Every portal behaviour hangs off that flag: no fullscreen or
+share button, sound on by default, and the SDK bridge (`HOST`). The script also
+adds the SDK tag and strips every link to hurtle.site and snap-hit.online,
+because cross promotion is banned on the portal, and it fails loudly if any
+survive. The SDK tag must never appear in `public/`.
+
+After any change to the game, rebuild the zip and upload it again; Basic Launch
+updates go live without review. Keep the five music paths relative.
+
 ## House style
 
 Australian English. No em dashes or en dashes, ever; restructure the sentence

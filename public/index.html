@@ -1115,6 +1115,47 @@ let paused = false;
    and the player turns it on. On its own page it plays. Muting is remembered
    either way, so a deliberate choice survives. */
 const FRAMED = (function(){ try { return window.self !== window.top; } catch(e){ return true; } })();
+
+/* ==========================================================================
+   PORTAL BUILD
+
+   Null in this file, always. tools/build_crazygames.py rewrites this
+   one line in its copy of the file, adds the CrazyGames SDK tag, and strips the
+   head and footer links. Nothing below does anything while it is null, so the
+   site keeps its zero external requests.
+
+   The bridge sends gameplay start and stop on change only, read off the game
+   state once a frame rather than threaded through every place a run starts,
+   pauses or ends. The SDK initialises asynchronously, so anything wanted before
+   it is ready is simply sent once it is.
+   ========================================================================== */
+const PORTAL = null;
+const HOST = {
+  sdk: null, playing: false,
+  init(){
+    if (PORTAL !== 'crazygames') return;
+    let s = null;
+    try { s = window.CrazyGames && window.CrazyGames.SDK; } catch(e){}
+    if (!s || !s.init) return;          // blocked by an ad blocker: the game plays regardless
+    try {
+      s.init().then(function(){
+        HOST.sdk = s; HOST.playing = false;
+        try {
+          audioHostMute(!!(s.game.settings && s.game.settings.muteAudio));
+          s.game.addSettingsChangeListener(function(n){ audioHostMute(!!(n && n.muteAudio)); });
+        } catch(e){}
+      }).catch(function(){});
+    } catch(e){}
+  },
+  sync(){
+    if (!HOST.sdk) return;
+    const want = state === 'play' && !paused && !setOpen;
+    if (want === HOST.playing) return;
+    HOST.playing = want;
+    try { if (want) HOST.sdk.game.gameplayStart(); else HOST.sdk.game.gameplayStop(); } catch(e){}
+  },
+  happy(){ try { if (HOST.sdk) HOST.sdk.game.happytime(); } catch(e){} }
+};
 const chromeEl = document.getElementById('chrome');
 function showChrome(on){ if (chromeEl) chromeEl.style.display = on ? 'block' : 'none'; }
 
@@ -1258,7 +1299,7 @@ function runLabel(){
 function shareText(){
   return GAME_NAME + ': ' + score() + '\n'
        + runLabel() + ', ' + (optsAreDefault() ? 'settings unchanged' : 'settings adjusted')
-       + '\nhurtle.site';
+       + (PORTAL ? '' : '\nhurtle.site');
 }
 let shareMsg = 0;
 function doShare(){
@@ -2393,7 +2434,7 @@ function setGeom(){
    and a flag would desync and draw the wrong icon.
    ========================================================================== */
 function fsAvailable(){
-  if (!cv) return false;
+  if (!cv || PORTAL) return false;
   const can = cv.requestFullscreen || cv.webkitRequestFullscreen;
   /* fullscreenEnabled is the honest answer to "would this work here": it is
      false on an iPhone, which has no Fullscreen API, and false in an iframe
@@ -2435,6 +2476,10 @@ addEventListener('keydown', e => {
   const c = e.code;
   /* Dismissing the lockup is not a game input: it must not fall through and
      start a run nobody has looked at yet. */
+  /* Space and the vertical arrows do nothing here, but left alone they scroll
+     whatever page the game is embedded in. */
+  if (c === 'Space' || c === 'ArrowUp' || c === 'ArrowDown') e.preventDefault();
+  audioNudge();
   if (bootFlash > 0){ skipBoot(); e.preventDefault(); return; }
   if (c === 'ArrowLeft'  || c === 'KeyA'){ keys.l = true; e.preventDefault(); }
   else if (c === 'ArrowRight' || c === 'KeyD'){ keys.r = true; e.preventDefault(); }
@@ -2460,11 +2505,20 @@ addEventListener('blur', () => { drag.id = null; drag.val = 0; keys.l = keys.r =
 /* ==========================================================================
    RENDER
    ========================================================================== */
+/* The projection works in fixed pixels, so on a big screen the world stayed
+   phone sized: at 1920x1080 the road ended well short of the bottom edge and a
+   quarter of the frame was black. Above this size the whole view is scaled up
+   instead, keyed to the shorter side so a phone in portrait, which is what the
+   game is tuned on, never changes. 1366x768 and smaller are untouched. */
+const VIEW_REF = 800;
+let ZOOM = 1;
 function resize(){
   DPR = Math.min(window.devicePixelRatio || 1, K.DPR_CAP);
-  W = cv.clientWidth; H = cv.clientHeight;
-  cv.width  = Math.max(1, Math.round(W * DPR));
-  cv.height = Math.max(1, Math.round(H * DPR));
+  const cw = cv.clientWidth, ch = cv.clientHeight;
+  ZOOM = Math.max(1, Math.min(cw, ch) / VIEW_REF);
+  W = cw / ZOOM; H = ch / ZOOM;
+  cv.width  = Math.max(1, Math.round(cw * DPR));
+  cv.height = Math.max(1, Math.round(ch * DPR));
   HALFW = W * 0.5; horizonY = H * K.HORIZON;
   D.DRAG_PX = Math.max(K.DRAG_MIN_PX, Math.min(W, H) * K.DRAG_FRAC);
   skyGrad = null; titleBloomKey = '';
@@ -3625,14 +3679,21 @@ function drawDead(){
 
   y += 16*s;
   const gap = 8*s, half = (bw - gap) * 0.5;
-  uiButton('menu', bx, y, half, 38*s, 'HOME', 12*s, false);
-  uiButton('share', bx + half + gap, y, half, 38*s,
-           shareMsg > 0 ? 'COPIED' : 'SHARE', 12*s, true);
+  if (PORTAL){
+    /* A portal frame usually refuses the share sheet and the clipboard, and the
+       text would point at another copy of the game anyway. */
+    uiButton('menu', bx, y, bw, 38*s, 'HOME', 12*s, false);
+    UI.share = null;
+  } else {
+    uiButton('menu', bx, y, half, 38*s, 'HOME', 12*s, false);
+    uiButton('share', bx + half + gap, y, half, 38*s,
+             shareMsg > 0 ? 'COPIED' : 'SHARE', 12*s, true);
+  }
   UI.settings = null;
 }
 
 function draw(){
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.setTransform(DPR*ZOOM, 0, 0, DPR*ZOOM, 0, 0);
 
   /* Render between simulation ticks rather than snapping to the last one. Slope
      runs physics at 50Hz with interpolation off on every rigidbody, so on a 60Hz
@@ -3750,7 +3811,7 @@ const MU = {
      Deliberately NOT decodeAudioData: three minutes of PCM is tens of megabytes
      and the device this is built for is a five year old Chromebook. --- */
   REC_N: 5,               // files on disk, track-1 to track-5
-  REC_PATH: '/music/track-',
+  REC_PATH: 'music/track-',
   REC_EXT: '.m4a',
   REC_GAIN: 3.6,          // relative to MASTER, which is set for the synth's own
                           //   raw levels rather than for a mastered file
@@ -3829,7 +3890,9 @@ function auBuild(){
   auMaster=AC.createGain(); auMaster.gain.value=.85; auMaster.connect(lim);
 }
 /* --- the game side: lifecycle, muting, and one track per run --- */
-let muMuted = false, muWant = false;
+/* muMuted is what everything reads. It is the player's own toggle or the host's
+   mute, whichever is on: a portal's mute takes priority over the in-game one. */
+let muMuted = false, muWant = false, muUser = false, muHost = false;
 
 /* ==========================================================================
    THE RECORDED TRACKS
@@ -4078,8 +4141,17 @@ function audioStart(){
   muWant = true;
 }
 function audioToggle(){
-  muMuted = !muMuted;
-  try { localStorage.setItem(MUTE_KEY, muMuted ? '1' : '0'); } catch(e){}
+  muUser = !muUser;
+  try { localStorage.setItem(MUTE_KEY, muUser ? '1' : '0'); } catch(e){}
+  audioApplyMute();
+}
+function audioHostMute(on){
+  if (muHost === on) return;
+  muHost = on;
+  audioApplyMute();
+}
+function audioApplyMute(){
+  muMuted = muUser || muHost;
   /* stopping the music button stops the download too, rather than paying for
      bytes nobody is listening to */
   if (muMuted) musPause();
@@ -4092,7 +4164,18 @@ function audioToggle(){
 function audioLoadMute(){
   let stored = null;
   try { stored = localStorage.getItem(MUTE_KEY); } catch(e){}
-  muMuted = stored === null ? FRAMED : (stored === '1');
+  /* A portal is the game's own page as far as the player is concerned, so it
+     starts with sound, the same as the game's own site does. */
+  muUser  = stored === null ? (FRAMED && !PORTAL) : (stored === '1');
+  muMuted = muUser || muHost;
+}
+/* iOS parks the context in "interrupted" after a call or a trip to the home
+   screen, and only a resume made inside a touch or click brings it back. The
+   frame loop keeps asking, but outside a gesture iOS keeps refusing, so every
+   press asks once more. */
+function audioNudge(){
+  if (!AC || muMuted || !muWant) return;
+  try { if (AC.state !== 'running') AC.resume(); } catch(e){}
 }
 function audioSuspend(){ muWant = false; musPause(); try { if (AC && AC.state === 'running') AC.suspend(); } catch(e){} }
 /* Pausing the game pauses the music, and suspending the context stops the clock
@@ -4168,7 +4251,7 @@ function loadBest(){
 }
 function saveBest(){
   if (!bestOK) return;
-  try { const s = score(); if (s > best){ best = s; localStorage.setItem(STORE_KEY, String(best)); } }
+  try { const s = score(); if (s > best){ if (best > 0) HOST.happy(); best = s; localStorage.setItem(STORE_KEY, String(best)); } }
   catch(e){ bestOK = false; }
 }
 
@@ -4248,6 +4331,7 @@ function frame(now){
   animT += lastFt;
   if (bootFlash > 0){ bootFlash -= lastFt; if (bootFlash <= 0){ bootFlash = 0; endBootChrome(); } }
   syncBoot();
+  HOST.sync();
   pushPerf(ft*1000);
   if (ft > 0.25) ft = 0.25;
 
@@ -4295,18 +4379,25 @@ function boot(){
   addEventListener('webkitfullscreenchange', resize);
   addEventListener('orientationchange', () => setTimeout(resize, 120));
 
+  cv.addEventListener('touchend', audioNudge, { passive:true });
   cv.addEventListener('pointerdown', e => {
+    audioNudge();
+    /* Every branch below cancels the pointerdown, and in Chrome a cancelled
+       pointerdown inside a frame never moves keyboard focus into it. Clicking
+       the game left the arrows driving the page around it, so a framed game
+       takes focus by hand. */
+    if (FRAMED){ try { window.focus(); } catch(err){} }
     /* Dismissing the lockup is not a game input either: it skips and stops
        there, so the tap cannot also press whatever is underneath it. */
     if (bootFlash > 0){ skipBoot(); e.preventDefault(); return; }
     if (state === 'title' || state === 'dead' || setOpen){
-      const hit = uiHit(e.clientX, e.clientY);
+      const hit = uiHit(e.clientX / ZOOM, e.clientY / ZOOM);
       if (setOpen){
         e.preventDefault();
         if (hit === 'setDone'){ setOpen = false; UI.settings = null; showChrome(true); return; }
         if (hit === 'setReset'){ resetOpts(); previewRefresh(); return; }
         if (hit && hit.slice(0,3) === 'opt'){
-          setDrag = +hit.slice(3); setFromX(setDrag, e.clientX);
+          setDrag = +hit.slice(3); setFromX(setDrag, e.clientX / ZOOM);
         }
         return;
       }
@@ -4333,7 +4424,7 @@ function boot(){
       }
     }
     if (state === 'play'){
-      const h2 = uiHit(e.clientX, e.clientY);
+      const h2 = uiHit(e.clientX / ZOOM, e.clientY / ZOOM);
       if (h2 === 'pause'){
         paused = !paused;
         if (paused) audioPause(); else audioResume();
@@ -4352,19 +4443,20 @@ function boot(){
       const side = e.clientX < cv.clientWidth * 0.5 ? -1 : 1;
       drag.id  = e.pointerId;
       drag.val = side * K.TAP_BIAS;
-      drag.ox  = e.clientX - drag.val * D.DRAG_PX;
+      drag.ox  = e.clientX / ZOOM - drag.val * D.DRAG_PX;
     }
     anyInput(); e.preventDefault();
   }, { passive:false });
   cv.addEventListener('pointermove', e => {
-    if (setOpen){ if (setDrag >= 0) setFromX(setDrag, e.clientX); return; }
-    if (e.pointerId === drag.id) dragMove(e.clientX);
+    if (setOpen){ if (setDrag >= 0) setFromX(setDrag, e.clientX / ZOOM); return; }
+    if (e.pointerId === drag.id) dragMove(e.clientX / ZOOM);
   });
   const lift = e => { setDrag = -1; if (e.pointerId === drag.id){ drag.id = null; drag.val = 0; } };
   cv.addEventListener('pointerup',     lift);
   cv.addEventListener('pointercancel', lift);
   cv.addEventListener('contextmenu',   e => e.preventDefault());
 
+  HOST.init();
   loadBest();
   audioLoadMute();
   musLoadPref();
