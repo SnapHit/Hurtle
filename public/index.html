@@ -1131,21 +1131,31 @@ const FRAMED = (function(){ try { return window.self !== window.top; } catch(e){
    ========================================================================== */
 const PORTAL = null;
 const HOST = {
-  sdk: null, playing: false,
+  sdk: null, playing: false, pending: false,
   init(){
     if (PORTAL !== 'crazygames') return;
     let s = null;
     try { s = window.CrazyGames && window.CrazyGames.SDK; } catch(e){}
     if (!s || !s.init) return;          // blocked by an ad blocker: the game plays regardless
     try {
-      s.init().then(function(){
+      /* The boot prefetch waits for this. The host's mute setting is only
+         known once init resolves, typically well over a second in, and a
+         prefetch at the usual moment had already pulled the whole track for a
+         player the host had muted. Settling either way releases it, and a
+         timer covers an init that never settles at all. */
+      const settle = function(){ HOST.pending = false; bootPrefetch(); };
+      const pr = s.init();
+      HOST.pending = true;
+      pr.then(function(){
         HOST.sdk = s; HOST.playing = false;
         try {
           audioHostMute(!!(s.game.settings && s.game.settings.muteAudio));
           s.game.addSettingsChangeListener(function(n){ audioHostMute(!!(n && n.muteAudio)); });
         } catch(e){}
-      }).catch(function(){});
-    } catch(e){}
+        settle();
+      }).catch(settle);
+      setTimeout(settle, MU.REC_HOST_WAIT_T * 1000);
+    } catch(e){ HOST.pending = false; }
   },
   sync(){
     if (!HOST.sdk) return;
@@ -1156,6 +1166,23 @@ const HOST = {
   },
   happy(){ try { if (HOST.sdk) HOST.sdk.game.happytime(); } catch(e){} }
 };
+/* Clicking the game moves keyboard focus into its frame, which is what makes
+   the arrows steer instead of scrolling the page around it. The cost is that
+   Escape lands here too, and the cluster pages shrink their zoomed cabinet on
+   an Escape heard by their own window. So on our own pages it is passed up as
+   well as acting here: the parent shrinks, the game still pauses. The cluster
+   pages match on e.key, so that is what is sent. A parent on another origin
+   throws on the first touch, and is simply left alone. */
+function escapeToParent(){
+  if (!FRAMED || PORTAL) return false;
+  try {
+    const P = window.parent;
+    if (!P || P === window) return false;
+    const KE = P.KeyboardEvent || KeyboardEvent;
+    P.dispatchEvent(new KE('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
+    return true;
+  } catch(e){ return false; }
+}
 const chromeEl = document.getElementById('chrome');
 function showChrome(on){ if (chromeEl) chromeEl.style.display = on ? 'block' : 'none'; }
 
@@ -2479,6 +2506,10 @@ addEventListener('keydown', e => {
   /* Space and the vertical arrows do nothing here, but left alone they scroll
      whatever page the game is embedded in. */
   if (c === 'Space' || c === 'ArrowUp' || c === 'ArrowDown') e.preventDefault();
+  /* Handed up to our own page, Escape means "out of here": in a run it still
+     pauses below, but anywhere else it stops at the relay rather than falling
+     through to anyInput and starting a run the player was leaving. */
+  if (c === 'Escape' && escapeToParent() && state !== 'play') return;
   audioNudge();
   if (bootFlash > 0){ skipBoot(); e.preventDefault(); return; }
   if (c === 'ArrowLeft'  || c === 'KeyA'){ keys.l = true; e.preventDefault(); }
@@ -2515,7 +2546,13 @@ let ZOOM = 1;
 function resize(){
   DPR = Math.min(window.devicePixelRatio || 1, K.DPR_CAP);
   const cw = cv.clientWidth, ch = cv.clientHeight;
+  const z0 = ZOOM;
   ZOOM = Math.max(1, Math.min(cw, ch) / VIEW_REF);
+  /* drag.ox is stored divided by ZOOM. A held drag across a ZOOM change would
+     subtract a new-space x from an old-space origin, so it is dropped and the
+     next press starts clean. Only on a change: a phone is always at ZOOM 1,
+     and a toolbar resize there must not cut a steer the player is holding. */
+  if (ZOOM !== z0){ drag.id = null; drag.val = 0; }
   W = cw / ZOOM; H = ch / ZOOM;
   cv.width  = Math.max(1, Math.round(cw * DPR));
   cv.height = Math.max(1, Math.round(ch * DPR));
@@ -3820,6 +3857,9 @@ const MU = {
                           //   started. Long enough not to be a hard cut, short
                           //   enough to feel immediate.
   REC_PREFETCH: true,     // buffer the remembered track while the splash is up
+  REC_HOST_WAIT_T: 4.0,   // s a portal waits for its SDK to say whether it is
+                          //   muted before prefetching anyway. Only a hung init
+                          //   ever reaches it.
   REC_STALL_T: 6.0,       // s without progress AFTER playback has begun. A track
                           //   that is still downloading also has a currentTime
                           //   that is not moving, so this clock only ever runs
@@ -3955,6 +3995,15 @@ function musUrl(){ return MU.REC_PATH + (musTrack + 1) + MU.REC_EXT; }
    still silent. Only the remembered track is asked for, never all five, and if
    the player skips to another one mid-run that becomes the remembered track and
    the one fetched next time. */
+/* The prefetch boot asks for, at most once. On the site, or on a portal whose
+   SDK did not load, this is exactly the old double-rAF call; on a portal that
+   is still finding out whether it is muted, HOST.init makes the call instead. */
+let bootPrefetchDone = false;
+function bootPrefetch(){
+  if (bootPrefetchDone) return;
+  bootPrefetchDone = true;
+  musPrefetch();
+}
 function musPrefetch(){
   if (!MU.REC_PREFETCH || muMuted) return;
   musBuild();
@@ -4141,6 +4190,12 @@ function audioStart(){
   muWant = true;
 }
 function audioToggle(){
+  /* While the host has muted, the host's mute is the one that counts and
+     nothing the player presses here can be heard. Flipping muUser anyway made
+     the button look dead while it quietly rewrote the stored preference, which
+     then outlived the host mute and followed the player to the site. The
+     button and KeyM both come through here. */
+  if (muHost) return;
   muUser = !muUser;
   try { localStorage.setItem(MUTE_KEY, muUser ? '1' : '0'); } catch(e){}
   audioApplyMute();
@@ -4473,7 +4528,7 @@ function boot(){
      splash should be on screen before anything else starts asking for the
      network. One frame costs nothing here: the player is about to spend
      seconds looking at it. */
-  requestAnimationFrame(function(){ requestAnimationFrame(musPrefetch); });
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ if (!HOST.pending) bootPrefetch(); }); });
 }
 boot();
 </script>
