@@ -1119,9 +1119,9 @@ const FRAMED = (function(){ try { return window.self !== window.top; } catch(e){
 /* ==========================================================================
    PORTAL BUILD
 
-   Null in this file, always. tools/build_crazygames.py rewrites this
-   one line in its copy of the file, adds the CrazyGames SDK tag, and strips the
-   head and footer links. Nothing below does anything while it is null, so the
+   Null in this file, always. tools/build_portal.py rewrites this
+   one line in its copy of the file, adds the SDK tag to the CrazyGames copy
+   only, and strips the head and footer links. Nothing below does anything while it is null, so the
    site keeps its zero external requests.
 
    The bridge sends gameplay start and stop on change only, read off the game
@@ -2461,7 +2461,9 @@ function setGeom(){
    and a flag would desync and draw the wrong icon.
    ========================================================================== */
 function fsAvailable(){
-  if (!cv || PORTAL) return false;
+  /* CrazyGames bans a custom fullscreen button and supplies its own. Any other
+     host keeps ours, still subject to the frame's permission below. */
+  if (!cv || PORTAL === 'crazygames') return false;
   const can = cv.requestFullscreen || cv.webkitRequestFullscreen;
   /* fullscreenEnabled is the honest answer to "would this work here": it is
      false on an iPhone, which has no Fullscreen API, and false in an iframe

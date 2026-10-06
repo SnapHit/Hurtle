@@ -86,21 +86,22 @@ Determinism is the thing most worth protecting: the same seed must produce the
 same run, byte for byte, or the daily track stops being comparable between
 players.
 
-## The CrazyGames copy
+## The portal copies
 
-`python3 tools/build_crazygames.py` writes `dist/hurtle-crazygames.zip`, the file
-uploaded at developer.crazygames.com. It is packaging, not a build step for the
-site: it reads `public/` and never writes to it, and `dist/` is ignored by git.
+`python3 tools/build_portal.py crazygames` and `python3 tools/build_portal.py
+newgrounds` write `dist/hurtle-<portal>.zip`, the file uploaded to that portal.
+This is packaging, not a build step for the site: it reads `public/` and never
+writes to it, and `dist/` is ignored by git.
 
-The copy differs from the site through one line, `const PORTAL = null;`, which
-the script sets. Every portal behaviour hangs off that flag: no fullscreen or
-share button, sound on by default, and the SDK bridge (`HOST`). The script also
-adds the SDK tag and strips every link to hurtle.site and snap-hit.online,
-because cross promotion is banned on the portal, and it fails loudly if any
-survive. The SDK tag must never appear in `public/`.
+A copy differs from the site through one line, `const PORTAL = null;`, which the
+script sets to the portal's name. With it set: no share button, and sound on by
+default. CrazyGames additionally loses the fullscreen button (they ban custom
+ones) and gets the SDK bridge (`HOST`) and the SDK tag. Every copy is stripped
+of links to hurtle.site and snap-hit.online, and the script fails loudly if any
+survive. The SDK tag must never appear in `public/` or in a non-CrazyGames copy.
 
-After any change to the game, rebuild the zip and upload it again; Basic Launch
-updates go live without review. Keep the five music paths relative.
+After any change to the game, rebuild the zips and upload them again. Keep the
+five music paths relative.
 
 ## House style
 
