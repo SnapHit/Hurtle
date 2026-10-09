@@ -9,3 +9,7 @@ tools/hd-reference/seq-*.json
 tools/hd-reference/frames-*/
 tools/hd-reference/clip-*.mp4
 tools/hd-reference/package*.json
+tools/hd-check/node_modules
+tools/hd-check/frames-*/
+tools/hd-check/sbs/
+tools/hd-check/seq-*.json

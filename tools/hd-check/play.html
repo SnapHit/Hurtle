@@ -1,0 +1,47 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000;overflow:hidden;width:100%;height:100%}#c{display:block;width:100%;height:100%}</style>
+<script type="importmap">{"imports":{"three":"../../portal/hd/vendor/three.module.min.js"}}</script>
+</head><body>
+<canvas id="c"></canvas>
+<script type="module">
+/* Drives portal/hd/renderer.js from a recording made by tools/hd-reference/seq.cjs,
+   so the same frames the approved renderer drew can be drawn by this one and put
+   side by side. Each recorded frame is turned into the snapshot viewState() would
+   have built for it. Query: seq, w, h (pixels), ballscale is not used here. */
+import HD from '../../portal/hd/renderer.js';
+const q = new URLSearchParams(location.search);
+const SEQ = await fetch('../hd-reference/seq-' + q.get('seq') + '.json').then(r => r.json());
+const F = SEQ.frames, SL = SEQ.world.slices;
+const PXW = +q.get('w'), PXH = +q.get('h');
+/* Rendering at more pixels than the recording is a larger ZOOM at a device
+   pixel ratio of 1, which is how the game itself would describe that screen. */
+const LW = SEQ.W / (SEQ.ZOOM || 1), LH = SEQ.H / (SEQ.ZOOM || 1), ZOOM = (SEQ.ZOOM || 1) * (PXW / SEQ.W), DPR = 1;
+const CITY_VIEW = 3600;
+function viewOf(i, dt){
+  const f = F[i], camZ = f.cam.z, far = camZ + Math.max(f.cam.viewZ, CITY_VIEW);
+  return Object.assign({}, f, {
+    dt, animT: i / 30, paused: false, W: LW, H: LH, ZOOM, DPR,
+    cam: Object.assign({}, f.cam, { shakeX: 0, shakeY: 0 }),
+    world: {
+      slices:  SL.filter(s => s.z >= camZ - 400 && s.z <= far + 900),
+      towers:  SEQ.world.towers.filter(t => t.z > camZ - 1600 && t.z < far + 800),
+      gaps:    SEQ.world.gaps.filter(g => g.z1 > camZ - 900 && g.z0 < far + 900),
+      tunnels: SEQ.world.tunnels.filter(g => g.z1 > camZ - 900 && g.z0 < far + 900),
+    },
+    K: SEQ.K,
+  });
+}
+let last = -1;
+window.renderFrame = function(i){
+  const dt = last >= 0 && i > last ? (i - last) / 30 : 1 / 30;
+  HD.render(viewOf(i, dt)); last = i;
+  return HD.debug.stats;
+};
+/* the same frame at a different clock, for the "drawn but not moving" check */
+window.renderAt = function(i, t){ HD.render(Object.assign(viewOf(i, 1 / 30), { animT: t })); return HD.debug.stats; };
+window.HD = HD;
+HD.init(document.getElementById('c'), document.body);
+window.__ready = { frames: F.length, slices: SL.length, towers: SEQ.world.towers.length };
+</script>
+</body></html>

@@ -1,0 +1,11 @@
+/* Night Circuit overlay. The fonts are bundled (decision D2) and load from the
+   zip; nothing here fetches from anywhere else. The screens themselves (U1 to
+   U6) land in phase 4; this is the base the renderer's overlay root relies on. */
+@font-face{font-family:Unbounded;font-weight:300;font-display:swap;src:url(fonts/unbounded-latin-300-normal.woff2) format("woff2")}
+@font-face{font-family:Unbounded;font-weight:500;font-display:swap;src:url(fonts/unbounded-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:Unbounded;font-weight:700;font-display:swap;src:url(fonts/unbounded-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:Unbounded;font-weight:900;font-display:swap;src:url(fonts/unbounded-latin-900-normal.woff2) format("woff2")}
+@font-face{font-family:Saira;font-weight:400;font-display:swap;src:url(fonts/saira-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:Saira;font-weight:600;font-display:swap;src:url(fonts/saira-latin-600-normal.woff2) format("woff2")}
+#hdui{position:fixed;inset:0;z-index:2;pointer-events:none;color:#eafcff;font-family:Saira,system-ui,sans-serif;
+  -webkit-user-select:none;user-select:none}
