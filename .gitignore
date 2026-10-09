@@ -4,3 +4,8 @@ node_modules/
 *.bak
 dist/
 __pycache__/
+tools/hd-reference/node_modules/
+tools/hd-reference/seq-*.json
+tools/hd-reference/frames-*/
+tools/hd-reference/clip-*.mp4
+tools/hd-reference/package*.json
