@@ -1166,6 +1166,9 @@ const HOST = {
   },
   happy(){ try { if (HOST.sdk) HOST.sdk.game.happytime(); } catch(e){} }
 };
+
+/* null on the site; set by tools/build_portal.py in the portal copies */
+const HD = null;
 /* Clicking the game moves keyboard focus into its frame, which is what makes
    the arrows steer instead of scrolling the page around it. The cost is that
    Escape lands here too, and the cluster pages shrink their zoomed cabinet on
@@ -3731,9 +3734,21 @@ function drawDead(){
   UI.settings = null;
 }
 
-function draw(){
-  ctx.setTransform(DPR*ZOOM, 0, 0, DPR*ZOOM, 0, 0);
+/* ==========================================================================
+   THE VIEW
 
+   The camera for this frame, decided once, in one place. updateView() reads
+   the simulation and the frame clock and writes only the render globals
+   (rX/rZ/rH, the camera, the shake). It touches nothing the simulation reads,
+   which is what lets the daily track stay comparable: the view can be anything
+   and the run is the same.
+
+   Two painters run from what it leaves behind. draw() is the 2D canvas, the
+   site. viewState() is a read-only snapshot in the shape the portal renderer
+   takes, and is only ever built when HD is set.
+   ========================================================================== */
+let shakeX = 0, shakeY = 0;
+function updateView(){
   /* Render between simulation ticks rather than snapping to the last one. Slope
      runs physics at 50Hz with interpolation off on every rigidbody, so on a 60Hz
      display the two beat against each other at 10Hz of visible judder and what
@@ -3742,15 +3757,11 @@ function draw(){
   rZ = P.pz + (P.z - P.pz) * a;
   rX = P.px + (P.x - P.px) * a;
   rH = P.ph + (P.h - P.ph) * a;
-  let shx = 0, shy = 0;
+  shakeX = 0; shakeY = 0;
   if (run && run.shake > 0.2){
-    shx = (Math.random()*2-1) * run.shake;
-    shy = (Math.random()*2-1) * run.shake;
+    shakeX = (Math.random()*2-1) * run.shake;
+    shakeY = (Math.random()*2-1) * run.shake;
   }
-  ctx.save();
-  ctx.translate(shx, shy);
-
-  drawSky();
 
   camZ = rZ - D.CAM_BACK;
   const ct = sampleTrack(camZ);
@@ -3797,6 +3808,69 @@ function draw(){
   const bY = projY(rX, bT.y + bT.bank * (bT.cx - rX) + rH, D.FOC / D.CAM_BACK);
   const keepY = H * K.CAM_KEEP;
   if (bY > keepY){ const shift = bY - keepY; projBase -= shift; hY -= shift; }
+}
+
+/* Obstacles have no identity of their own and must not grow one, because the
+   simulation owns them. The renderer needs one to carry per-block state across
+   frames, so it is kept on this side, keyed by the object. */
+const viewIds = new WeakMap();
+let viewNextId = 0;
+const VIEW_SPAN = [0, 0];
+function viewState(){
+  const zMax = camZ + D.VIEW_Z;
+  const far  = camZ + Math.max(D.VIEW_Z, K.CITY_VIEW);
+  const bT = sampleTrack(rZ, TR2);
+  const slices = [];
+  for (let k = 0; k < gen.slices.length; k++){
+    const z = (gen.idx0 + k) * K.SLICE_DZ;
+    if (z > far + 900) break;
+    const s = gen.slices[k];
+    slices.push({ z, cx:s.cx, hw:s.hw, y:s.y, bank:s.bank });
+  }
+  const obs = [];
+  for (let i = 0; i < obstacles.length; i++){
+    const o = obstacles[i];
+    if (o.z <= camZ - 300 || o.z >= zMax) continue;
+    let id = viewIds.get(o);
+    if (id === undefined){ id = viewNextId++; viewIds.set(o, id); }
+    obstSpan(o, VIEW_SPAN);
+    obs.push({ id, z:o.z, x:o.x, hw:o.hw, kind:o.kind, y0:VIEW_SPAN[0], y1:VIEW_SPAN[1],
+               f:riseFrac(o), dead:!!o.dead, base:surfaceY(o.z, o.x) });
+  }
+  return {
+    t: run.t, state, dt: lastFt, animT, paused,
+    W, H, ZOOM, DPR,
+    cam: { x:camX, y:camY, z:camZ, roll, pitch: Math.atan2(pitchS, pitchC), projBase,
+           FOC: D.FOC, hY, viewZ: D.VIEW_Z, shakeX, shakeY },
+    ball: { x:rX, z:rZ, h:rH, y: bT.y + bT.bank * (bT.cx - rX) + rH, air: !!P.air, save: !!P.save,
+            burst: P.burst || 0, fallY: P.fallY || 0, overKind: run.overKind || null,
+            freeze: run.freeze || 0, iframes: P.iframes || 0 },
+    obs,
+    pick: save.live ? { x:save.x, z:save.z, y: surfaceY(save.z, save.x), spin: save.spin || 0 } : null,
+    sparks: sparks.map(s => [s.x, s.y, s.z, s.life]),
+    shards: shards.map(s => [s.x, s.y, s.z, s.vx || 0, s.vy || 0, s.vz || 0]),
+    flashT: run.flashT || 0,
+    flashO: run.flashO ? { z:run.flashO.z, x:run.flashO.x, hw:run.flashO.hw } : null,
+    hud: { score: score(), mul: scoreMul() * chainMul(), chain: run.chain, chainT: run.chainT,
+           tier: run.tier, tierT: run.tierT, v: speedNow(), daily: run.daily },
+    gap: !!gapAt(rZ), shake: run.shake || 0,
+    world: {
+      slices,
+      towers:  towers.filter(w => w.z > camZ - 1600 && w.z < far + 800)
+                     .map(w => ({ z:w.z, x:w.x, w:w.w, d:w.d, base:w.base, h:w.h, tone:w.tone })),
+      gaps:    gaps.filter(g => g.z1 > camZ - 900 && g.z0 < far + 900).map(g => ({ z0:g.z0, z1:g.z1 })),
+      tunnels: tunnels.filter(g => g.z1 > camZ - 900 && g.z0 < far + 900).map(g => ({ z0:g.z0, z1:g.z1 })),
+    },
+    K: { OBST_D:K.OBST_D, OBST_H:K.OBST_H, LIP_W:K.LIP_W, BALL_R:K.BALL_R, TIER_V:K.TIER_V },
+  };
+}
+
+function draw(){
+  ctx.setTransform(DPR*ZOOM, 0, 0, DPR*ZOOM, 0, 0);
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  drawSky();
 
   drawHorizon();
   drawCity();
@@ -4418,7 +4492,8 @@ function frame(now){
   if (state === 'title'){ rZ = P.z; rX = P.x; rH = 0; }
   camX += (targetX - camX) * (1 - Math.exp(-K.CAM_LAG * ft));
 
-  draw();
+  updateView();
+  if (HD) HD.render(viewState()); else draw();
 }
 
 /* ==========================================================================
@@ -4429,6 +4504,7 @@ function boot(){
   ctx = cv.getContext('2d', { alpha:false });
   derive();
   resize();
+  if (HD) HD.init(cv, document.body);
   if (bootFlash > 0){ try { document.documentElement.classList.add('booting'); } catch(e){} }
   else bootChromeHidden = false;
   addEventListener('resize', resize);
