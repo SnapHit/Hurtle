@@ -27,6 +27,7 @@
 .hd-tag{position:absolute;left:0;right:0;text-align:center;font-weight:600;letter-spacing:.32em;text-transform:uppercase}
 .hd-daily{top:calc(var(--s)*110);font-size:calc(var(--s)*11);color:#9fe8ff;opacity:.75}
 .hd-thread{top:calc(var(--s)*128);font-size:calc(var(--s)*14);color:#5cff9a;text-shadow:0 0 12px rgba(60,255,140,.8)}
+.hd-teach{top:calc(var(--s)*150);font-size:calc(var(--s)*14);color:#5cff9a;text-shadow:0 0 12px rgba(60,255,140,.8)}
 .hd-tier{bottom:calc(var(--s)*44);font-size:calc(var(--s)*12);opacity:.55}
 .hd-banner{position:absolute;left:0;right:0;text-align:center;font-family:Unbounded;font-weight:900;font-style:italic;letter-spacing:.06em;
   top:calc(var(--ch)*0.27);font-size:calc(var(--s)*64);color:#fff;text-shadow:0 0 30px rgba(255,80,170,.9),0 0 70px rgba(255,80,170,.6)}

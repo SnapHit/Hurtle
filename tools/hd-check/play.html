@@ -70,6 +70,9 @@ window.renderFrame = function(i){
 window.renderAt = function(i, t){ HD.render(viewOf(i, 1 / 30, t)); return HD.debug.stats; };
 window.HD = HD;
 HD.init(document.getElementById('c'), document.body, (key, arg) => console.log('uiAction', key, JSON.stringify(arg || null)));
+/* the stills compare the reviewed look, so the level is pinned to High rather
+   than picked from SwiftShader's frame rate; ?quality=low shows D4's Low */
+HD.setQuality(q.get('quality') === 'low' ? 'low' : 'high');
 window.__ready = { frames: F.length, slices: SL.length, towers: SEQ.world.towers.length };
 </script>
 </body></html>

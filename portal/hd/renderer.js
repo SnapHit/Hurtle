@@ -36,7 +36,14 @@ const TIERS = [
 const TIER_BLEND_T = 2.5;        // s, smoothstep (W7)
 
 /* ---------------- quality (D4; the switch lands in phase 5) ---------------- */
-const Q = { bloom: true, boards: true, traffic: true, beams: true, prCap: 2, cloudMul: 1, streakMul: 1 };
+const Q = { level: 'high', bloom: true, boards: true, traffic: true, beams: true, prCap: 2, cloudMul: 1, streakMul: 1 };
+/* D4: the level is picked once from the frame rate over the first two seconds
+   (below 50 a second, Low) and remembered per browser. Storage can be missing
+   on a locked down profile, so every touch is wrapped and a failure just means
+   measuring again next time. */
+const QKEY = 'hurtle_hd_quality_v1', Q_FPS = 50, Q_SKIP = 10, Q_SECS = 2;
+let qAuto = null;
+function storedQuality() { try { const v = localStorage.getItem(QKEY); return v === 'low' || v === 'high' ? v : null; } catch (e) { return null; } }
 
 /* ---------------- streaming geometry ---------------- */
 const CZ   = 360;          // z per road chunk: 20 slices of 18
@@ -675,6 +682,8 @@ function initInner(canvas, overlayRoot, action) {
   buildMaterials();
   buildActors({ BALL_R: 10.5 });   // re-sized from the view's K on the first frame
   screens = createScreens(uiRoot, action);   // U1 to U6, over the vignette
+  const stored = storedQuality();
+  if (stored) applyQuality(stored); else if (Q.level === 'low') applyQuality('low'); else qAuto = { skip: Q_SKIP, n: 0, t: 0 };
 
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, cam));
@@ -691,6 +700,7 @@ let lastBoardT = -1;
 export function render(v) {
   if (dead) { if (typeof draw === 'function') draw(); return; }
   if (!renderer) return;
+  measureQuality(v);
   renderer.info.reset();
   ensureSize(v);
   /* effect timers run on game time, so they freeze behind the pause veil like
@@ -874,13 +884,31 @@ function updateActors(v, t, dt, dying, hitDead, restart) {
     const r = 30 + 1400 * k; shock.scale.set(r, r, r); shock.material.color.set(TIERS[lastTier].accent); shock.material.opacity = (1 - k) * 0.9; if (k >= 1) { shockT = -1; shock.visible = false; } }
 }
 
-export function setQuality(level) {
+function applyQuality(level) {
   const low = level === 'low';
+  Q.level = low ? 'low' : 'high';
   Q.bloom = !low; Q.boards = !low; Q.traffic = !low; Q.beams = !low; Q.prCap = low ? 1 : 2; Q.cloudMul = low ? 0.5 : 1; Q.streakMul = low ? 0.5 : 1;
   for (const tc of towerChunks.values()) for (const b of tc.boards) b.visible = Q.boards;
+  /* what is already built goes now, not when it drifts out of range: traffic
+     and searchlights are rebuilt only if allowed, clouds on the new spacing */
+  for (const L of lanes.values()) { scene.remove(L.m); L.m.dispose(); } lanes.clear();
+  for (const b of beams.values()) { scene.remove(b.m); b.m.material.dispose(); } beams.clear();
+  for (const c of clouds.values()) scene.remove(c.sp); clouds.clear();
   W = -1;   // force a size pass so the pixel ratio cap takes effect
 }
-export const debug = { stats, TIERS, Q, get scene() { return scene; }, get renderer() { return renderer; }, get screens() { return screens; },
+/* an explicit choice: applied at once, and it ends any measuring in progress */
+export function setQuality(level) { qAuto = null; if (scene) applyQuality(level); else Q.level = level === 'low' ? 'low' : 'high'; }
+function measureQuality(v) {
+  if (!qAuto || (typeof document !== 'undefined' && document.hidden)) return;
+  if (qAuto.skip > 0) { qAuto.skip--; return; }   // shader compiles and the first uploads are not the frame rate
+  qAuto.n++; qAuto.t += v.dt;
+  if (qAuto.t < Q_SECS) return;
+  const fps = qAuto.n / qAuto.t, level = fps < Q_FPS ? 'low' : 'high';
+  qAuto = null; stats.fps0 = +fps.toFixed(1);
+  applyQuality(level);
+  try { localStorage.setItem(QKEY, level); } catch (e) {}
+}
+export const debug = { stats, TIERS, Q, get measuring() { return !!qAuto; }, get scene() { return scene; }, get renderer() { return renderer; }, get screens() { return screens; },
   /* the effect timers, for scripted checks: a restart must not arm the E8 shock, a pause must freeze them */
   effects: () => ({ shockT, tierBlend, lastTier, tierFrom, flashT, burstT, fallShakeT, fragT, shockVisible: !!(shock && shock.visible), streaksVisible: !!(streaks && streaks.visible), streakOpacity: streaks ? streaks.material.opacity : null }) };
 export default { init, render, setQuality, debug };

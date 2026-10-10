@@ -62,6 +62,7 @@ export function createScreens(root, action) {
   const mul = slot(el('div', 'hd-mul', hud));
   const dailyTag = el('div', 'hd-tag hd-daily', hud); const dailyT = slot(dailyTag);
   const thread = el('div', 'hd-tag hd-thread', hud); const threadT = slot(thread); const threadO = styled(thread, 'opacity');
+  const teach = el('div', 'hd-tag hd-teach', hud); const teachT = slot(teach); const teachO = styled(teach, 'opacity');
   const banner = el('div', 'hd-banner', hud); const bannerT = slot(banner);
   const bannerO = styled(banner, 'opacity'), bannerX = styled(banner, 'transform');
   const tier = el('div', 'hd-tag hd-tier', hud); const tierT = slot(tier);
@@ -162,6 +163,8 @@ export function createScreens(root, action) {
       const hd = v.hud;
       score(String(hd.score)); mul('x' + hd.mul.toFixed(1));   // the HUD numeral is raw, as the reference and the site draw it
       show(dailyTag, !!hd.daily); if (hd.daily) dailyT('daily #' + ui.dailyNo);
+      /* the first-time shield callout, green like THREADED, under it */
+      const tc = ui.teach; show(teach, !!tc); if (tc) { teachT(tc.text); teachO(tc.a.toFixed(3)); }
       show(thread, hd.chain > 0);
       if (hd.chain > 0) { threadT('threaded ' + hd.chain); threadO((0.4 + 0.6 * Math.min(1, hd.chainT / 1.2)).toFixed(3)); }
       const name = TIER_NAME[hd.tier] || ui.tierName || '';

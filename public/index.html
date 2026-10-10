@@ -3883,6 +3883,18 @@ const VIEW_SPAN = [0, 0];
    show them every frame, but optsAreDefault walks the whole option table and
    a run's cause and provenance cannot change after it ends. */
 let uiCountSec = -1, uiCountStr = '', uiDeadRun = null, uiDeadCard = null;
+/* Moment one of the shield teach (drawSave), for the overlay: the same words
+   and the same fade in and out with the pickup's distance, until this browser
+   has collected one. */
+function uiTeach(){
+  if (!K.TEACH_ON || taught.got !== 0 || !save.live || state !== 'play') return null;
+  const dz = save.z - camZ;
+  if (dz < 30) return null;
+  const inA  = clamp((K.TEACH_LABEL_FAR - dz) / Math.max(K.TEACH_LABEL_FAR - K.TEACH_LABEL_NEAR, 1), 0, 1);
+  const outA = clamp((dz - K.TEACH_LABEL_GONE) / Math.max(K.TEACH_LABEL_NEAR - K.TEACH_LABEL_GONE, 1), 0, 1);
+  const a = Math.min(inA, outA);
+  return a > 0.01 ? { text: K.TEACH_FIRST, a } : null;
+}
 function uiCountdown(){
   const sec = Math.floor(Date.now() / 1000);
   if (sec !== uiCountSec){ uiCountSec = sec; uiCountStr = dailyCountdown(); }
@@ -3939,7 +3951,7 @@ function viewState(){
           setOpen, setDrag, tierName: TIER_NAME[run.tier] || '',
           opts: setOpen ? OPT.map(e => ({ label: e.label, t: (e.v - e.min) / (e.max - e.min), cos: !!e.cos })) : null,
           countdown: state === 'title' ? uiCountdown() : null,
-          dead: state === 'dead' ? uiDead() : null, lock: run.inputLock > 0 },
+          dead: state === 'dead' ? uiDead() : null, lock: run.inputLock > 0, teach: uiTeach() },
     gap: !!gapAt(rZ), shake: run.shake || 0,
     world: {
       slices,
