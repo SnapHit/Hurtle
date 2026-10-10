@@ -13,3 +13,4 @@ tools/hd-check/node_modules
 tools/hd-check/frames-*/
 tools/hd-check/sbs/
 tools/hd-check/seq-*.json
+tools/hd-check/clips/

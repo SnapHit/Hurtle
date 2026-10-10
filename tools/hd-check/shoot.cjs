@@ -1,14 +1,16 @@
 // Screenshots frames of a recording drawn by portal/hd/renderer.js, the way
 // tools/hd-reference/cine.cjs does for the approved renderer, so the two can be
 // compared frame for frame.
-//   node shoot.cjs <seq> <from> <to> <w> <h> <name> [stills: comma frame list]
+//   node shoot.cjs <seq> <from> <to> <w> <h> <name> [extraQuery] [stills: comma frame list]
+// extraQuery is appended to the page URL, for example "&stage=..." exactly as cine.cjs
+// takes it; from is passed as the clip clock origin the way cine.cjs passes it to anim.html.
 // Serve the repository root first:  (cd ../.. && python3 -m http.server 8771)
 const { chromium } = require('playwright'); const fs = require('fs'); (async () => {
-const [seq, from, to, w, h, name, stills = ''] = process.argv.slice(2);
+const [seq, from, to, w, h, name, extra = '', stills = ''] = process.argv.slice(2);
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await (await browser.newContext({ viewport: { width: +w, height: +h } })).newPage();
 const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error') errs.push(m.text().slice(0, 300)); });
-await page.goto(`http://localhost:8771/tools/hd-check/play.html?seq=${seq}&w=${w}&h=${h}`);
+await page.goto(`http://localhost:8771/tools/hd-check/play.html?seq=${seq}&w=${w}&h=${h}&from=${from}${extra}`);
 await page.waitForFunction(() => window.__ready || window.__err, null, { timeout: 240000 }).catch(() => { console.log('LOAD FAIL', errs.join(' | ')); process.exit(1); });
 console.log(name, JSON.stringify(await page.evaluate(() => window.__ready)), errs.slice(0, 3).join(' | '));
 const want = stills ? new Set(stills.split(',').map(Number)) : null;

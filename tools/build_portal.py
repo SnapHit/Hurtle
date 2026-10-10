@@ -61,7 +61,9 @@ import renderer from './renderer.js';
 (function(){
   try {
     const c = document.createElement('canvas');
-    if (!(c.getContext('webgl2') || c.getContext('webgl'))) return;
+    const g = c.getContext('webgl2') || c.getContext('webgl');
+    if (!g) return;
+    const lose = g.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext();   // the probe is not the renderer's context
   } catch (e) { return; }
   window.HURTLE_HD = renderer;
 })();
@@ -103,11 +105,19 @@ def build_html(html, portal, hd):
         # behind the renderer module (see the docstring). It is the one large
         # inline script; the tiny ones stay where they are.
         scripts = [(m.start(), m.end(), m.group(1)) for m in re.finditer(r'<script>(.*?)</script>', html, re.S)]
-        big = max(scripts, key=lambda s: len(s[2]))
+        big = max(scripts, key=lambda s: len(s[2])) if scripts else (0, 0, '')
         if len(big[2]) < 100000:
             fail('could not find the game script to extract')
         game_js = big[2]
         game_js = sub(game_js, r"const HD = null;", "const HD = window.HURTLE_HD || null;", 1)
+        # The game fullscreens its own canvas, and a fullscreen element hides its
+        # siblings, which is where the renderer's canvas and the overlay live. With
+        # the renderer in, the whole document goes fullscreen instead; fsOn() reads
+        # document.fullscreenElement either way, and fsAvailable() still asks the
+        # canvas whether the API exists, which is the same answer.
+        game_js = sub(game_js,
+                      r"p = cv\.requestFullscreen \? cv\.requestFullscreen\(\)\n\s*: cv\.webkitRequestFullscreen \? cv\.webkitRequestFullscreen\(\) : null;",
+                      "p = document.documentElement.requestFullscreen ? document.documentElement.requestFullscreen()\n        : document.documentElement.webkitRequestFullscreen ? document.documentElement.webkitRequestFullscreen() : null;", 1)
         html = (html[:big[0]]
                 + '<script type="module" src="hd/boot.js"></script>\n<script defer src="game.js"></script>'
                 + html[big[1]:])
@@ -120,7 +130,11 @@ def build_html(html, portal, hd):
                        'slope-3', 'slope-online', 'href="/', 'src="/', "'/music"):
             if needle in text.lower():
                 fail('%s still contains %r' % (label, needle))
-        urls = set(re.findall(r'https?://[^\s"\'<>)]+', text))
+        low = text.lower()
+        urls = set(re.findall(r'https?://[^\s"\'<>)]+', low))
+        # protocol-relative references and CSS fetches are addresses too
+        if re.search(r'(?:src|href)\s*=\s*["\']//', low) or re.search(r'url\(\s*["\']?//', low) or '@import' in low:
+            fail('%s carries a protocol-relative or CSS fetch' % label)
         allowed = {'http://www.w3.org/2000/svg'}
         if sdk:
             allowed.add(re.search(r'src="([^"]+)"', sdk).group(1))
@@ -131,6 +145,8 @@ def build_html(html, portal, hd):
         fail('SDK tag missing, duplicated or in the wrong copy')
     if hd and 'window.HURTLE_HD' not in game_js:
         fail('the HD hook was not pointed at the renderer')
+    if hd and 'cv.requestFullscreen()' in game_js:
+        fail('the game still fullscreens its own canvas, which would hide the renderer')
     return html, game_js
 
 
@@ -145,18 +161,38 @@ def copy_hd(out):
     for dp, _, fns in os.walk(dst):
         for fn in fns:
             files.append(os.path.join(dp, fn))
+    files.sort()        # a reproducible archive
     for must in ('renderer.js', 'ui.css', os.path.join('vendor', 'three.module.min.js')):
         if not os.path.isfile(os.path.join(dst, must)):
             fail('hd/ is missing ' + must)
-    # Nothing in hd/ may fetch from anywhere: no URLs beyond the SVG namespace
+    # Nothing in hd/ may fetch from anywhere or point at the site: every text
+    # member is read, not just the scripts. The two XML namespace strings are the
+    # only addresses allowed, because browsers never fetch them. The font licences
+    # are the one exception: the OFL requires the licence text to travel with the
+    # font as written, URLs included, and nothing ever loads a licence file.
+    licences = []
     for f in files:
-        if f.endswith(('.js', '.css')):
-            with open(f, encoding='utf-8') as fh:
-                urls = set(re.findall(r'https?://[^\s"\'<>)]+', fh.read()))
-            # the two XML namespace strings are the only addresses allowed: browsers never fetch them
-            urls -= {'http://www.w3.org/2000/svg', 'http://www.w3.org/1999/xhtml'}
+        rel = os.path.relpath(f, out)
+        if f.endswith(('.woff2', '.png', '.jpg', '.m4a')):
+            continue
+        with open(f, encoding='utf-8', errors='replace') as fh:
+            low = fh.read().lower()
+        if re.search(r'url\(\s*["\']?//', low) or re.search(r'(?:src|href)\s*=\s*["\']//', low) or '@import' in low:
+            fail('%s carries a protocol-relative or CSS fetch' % rel)
+        for needle in ('hurtle.site', 'snap-hit.online', 'beakdown', 'slope-2', 'slope-3',
+                       'slope-online', 'href="/', 'src="/', "'/music", 'url(/'):
+            if needle in low:
+                fail('%s still contains %r' % (rel, needle))
+        urls = set(re.findall(r'https?://[^\s"\'<>)]+', low))
+        urls -= {'http://www.w3.org/2000/svg', 'http://www.w3.org/1999/xhtml'}
+        if os.path.basename(f).startswith('LICENSE'):
             if urls:
-                fail('%s carries a URL: %s' % (os.path.relpath(f, out), ', '.join(sorted(urls))))
+                licences.append(rel)
+            continue
+        if urls:
+            fail('%s carries a URL: %s' % (rel, ', '.join(sorted(urls))))
+    if licences:
+        print('  licence text with its own URLs, required by the OFL and never fetched: ' + ', '.join(licences))
     return files
 
 
@@ -203,9 +239,12 @@ def main():
     total = sum(os.path.getsize(os.path.join(dp, fn))
                 for dp, _, fns in os.walk(OUT) for fn in fns)
     print('dist/%s/  %d files, %.2f MB%s' % (portal, len(members), total / 1e6, '' if hd else '  (--no-hd)'))
-    print('dist/hurtle-%s.zip  %.2f MB' % (portal, os.path.getsize(ZIP) / 1e6))
-    if total > 20e6:
-        print('warning: over 20 MB, which rules out the CrazyGames mobile homepage')
+    zsize = os.path.getsize(ZIP)
+    print('dist/hurtle-%s.zip  %.2f MB' % (portal, zsize / 1e6))
+    # the brief's limit is on the zip (CrazyGames' 20 MB initial download), and it is a limit
+    if zsize > 20e6:
+        os.remove(ZIP)
+        fail('the zip is %.2f MB; the limit is 20 MB' % (zsize / 1e6))
 
 
 if __name__ == '__main__':

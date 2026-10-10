@@ -8,7 +8,9 @@
 /* Drives portal/hd/renderer.js from a recording made by tools/hd-reference/seq.cjs,
    so the same frames the approved renderer drew can be drawn by this one and put
    side by side. Each recorded frame is turned into the snapshot viewState() would
-   have built for it. Query: seq, w, h (pixels), ballscale is not used here. */
+   have built for it. Query: seq, w, h (pixels), from and t0 (the clip clock,
+   exactly as anim.html: t = (i - from) / 30 + t0, so pulses and staged blocks
+   sit at the same point of their cycle as the reference frame), stage. */
 import HD from '../../portal/hd/renderer.js';
 const q = new URLSearchParams(location.search);
 const SEQ = await fetch('../hd-reference/seq-' + q.get('seq') + '.json').then(r => r.json());
@@ -18,11 +20,28 @@ const PXW = +q.get('w'), PXH = +q.get('h');
    pixel ratio of 1, which is how the game itself would describe that screen. */
 const LW = SEQ.W / (SEQ.ZOOM || 1), LH = SEQ.H / (SEQ.ZOOM || 1), ZOOM = (SEQ.ZOOM || 1) * (PXW / SEQ.W), DPR = 1;
 const CITY_VIEW = 3600;
-function viewOf(i, dt){
+const FROM = +(q.get('from') || 0), T0 = +(q.get('t0') || 0);
+const clipT = i => (i - FROM) / 30 + T0;
+/* stage=: override obstacle kinds by id, exactly as anim.html does, so a still
+   can show a sliding, rising or dropping block where the run had a static one */
+const STAGE = q.get('stage') ? JSON.parse(decodeURIComponent(q.get('stage'))) : {};
+function staged(obs, t){
+  return obs.map(o0 => { const o = Object.assign({}, o0, STAGE[o0.id] || {});
+    if (STAGE[o0.id] && STAGE[o0.id].kind !== undefined){
+      const ph = STAGE[o0.id].ph || 0, f = 0.5 - 0.5 * Math.cos((t * 0.7 + ph) * Math.PI * 2);
+      if (o.kind === 1) o.x = o0.x + Math.sin(t * 1.4 + ph) * (STAGE[o0.id].amp || 60);
+      if (o.kind === 2){ o.y0 = 0; o.y1 = SEQ.K.OBST_H * f; o.f = f; }
+      if (o.kind === 3){ const b = 110 * (1 - f); o.y0 = b; o.y1 = b + SEQ.K.OBST_H; o.f = f; }
+    }
+    return o; });
+}
+function viewOf(i, dt, t){
+  if (t === undefined) t = clipT(i);
   const f = F[i], camZ = f.cam.z, far = camZ + Math.max(f.cam.viewZ, CITY_VIEW);
   return Object.assign({}, f, {
-    dt, animT: i / 30, paused: false, W: LW, H: LH, ZOOM, DPR,
+    dt, animT: t, paused: false, W: LW, H: LH, ZOOM, DPR,
     cam: Object.assign({}, f.cam, { shakeX: 0, shakeY: 0 }),
+    obs: staged(f.obs, t),
     world: {
       slices:  SL.filter(s => s.z >= camZ - 400 && s.z <= far + 900),
       towers:  SEQ.world.towers.filter(t => t.z > camZ - 1600 && t.z < far + 800),
@@ -39,7 +58,7 @@ window.renderFrame = function(i){
   return HD.debug.stats;
 };
 /* the same frame at a different clock, for the "drawn but not moving" check */
-window.renderAt = function(i, t){ HD.render(Object.assign(viewOf(i, 1 / 30), { animT: t })); return HD.debug.stats; };
+window.renderAt = function(i, t){ HD.render(viewOf(i, 1 / 30, t)); return HD.debug.stats; };
 window.HD = HD;
 HD.init(document.getElementById('c'), document.body);
 window.__ready = { frames: F.length, slices: SL.length, towers: SEQ.world.towers.length };
