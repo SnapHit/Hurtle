@@ -91,6 +91,12 @@ function tr(z) {
 const surf = (z, x) => { const t = tr(z); return t.y + t.bank * (t.cx - x); };
 const gapAt = z => world.gaps.some(g => z >= g.z0 && z <= g.z1);
 const inTunnel = z => world.tunnels.some(t => z > t.z0 && z < t.z1);
+/* Lays a flat mesh on the deck: local x along the road's right, z out of the
+   surface. The basis has to be a proper rotation. right, -fwd, up is a mirror
+   image (determinant -1), and turning that into a quaternion lost about half the
+   bank, so the jump chevrons sat level on a tilted road. */
+const _deckM = new THREE.Matrix4(), _deckY = new THREE.Vector3();
+function onDeck(q, f) { _deckY.crossVectors(f.up, f.right).normalize(); return q.setFromRotationMatrix(_deckM.makeBasis(f.right, _deckY, f.up)); }
 function frameAt(z, x) {
   const p0 = V(x, surf(z - 10, x), z - 10), p1 = V(x, surf(z + 10, x), z + 10);
   const pl = V(x - 10, surf(z, x - 10), z), pr = V(x + 10, surf(z, x + 10), z);
@@ -389,7 +395,7 @@ function streamLips(camZ, far) {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(s.hw * 2, 16), chevMat);
       const f = frameAt(zz + off, s.cx);
       m.position.copy(V(s.cx, s.y, zz + off)).addScaledVector(f.up, 0.8);
-      m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(f.right, f.fwd.clone().negate(), f.up));
+      onDeck(m.quaternion, f);
       scene.add(m); meshes.push(m);
       const face = new THREE.Mesh(new THREE.PlaneGeometry(s.hw * 2, T), faceMat);
       face.position.copy(V(s.cx, s.y - T / 2, zz)); face.rotation.z = Math.atan(-s.bank); scene.add(face); meshes.push(face);
@@ -805,7 +811,7 @@ function updateActors(v, t, dt, dying, hitDead, restart) {
     e.top.visible = o.kind === 1; e.top.scale.set(o.hw * 1.2, 1, 1); e.top.position.y = h / 2 + 1;
     const moving = o.x - e.lastX; if (Math.abs(moving) > 0.01) e.top.rotation.z = moving > 0 ? 0 : Math.PI; e.lastX = o.x;
     e.halo.scale.set(o.hw * 4, h * 3 + 20, 1);
-    e.pad.position.set(o.x, surf(o.z, o.x) + 0.7, -o.z); e.pad.quaternion.setFromRotationMatrix(_m.makeBasis(fa.right, fa.fwd.clone().negate(), fa.up));
+    e.pad.position.set(o.x, surf(o.z, o.x) + 0.7, -o.z); onDeck(e.pad.quaternion, fa);
     e.pad.scale.set(o.hw * 2.2, 1, 1); e.pad.material.opacity = 0.15 + 0.5 * (o.f ?? 1) * (0.7 + 0.3 * Math.sin(t * 12));
     if (o.id !== killerId) { e.box.material.emissive.set(e.col); e.box.material.emissiveIntensity = 2.6; }
   }
@@ -828,7 +834,7 @@ function updateActors(v, t, dt, dying, hitDead, restart) {
   trail.forEach((s, k) => { const p = hist[k + 1]; s.visible = !!p && !dying && !title; if (!p) return; const f = 1 - k / TRN; s.position.copy(p); s.scale.set(BR * 2.4 * f + 2, BR * 2.4 * f + 2, 1); s.material.opacity = 0.3 * f; });
   shadow.visible = !title && (!dying || hitDead);
   { const sz = BR * (b.air ? 3.2 : 2.6) * (b.air ? Math.max(0.5, 1 - b.h / 300) : 1);
-    shadow.position.set(b.x, surf(b.z, b.x) + 0.5, -b.z); shadow.quaternion.setFromRotationMatrix(_m.makeBasis(fb.right, fb.fwd.clone().negate(), fb.up)); shadow.scale.set(sz, sz, 1); }
+    shadow.position.set(b.x, surf(b.z, b.x) + 0.5, -b.z); onDeck(shadow.quaternion, fb); shadow.scale.set(sz, sz, 1); }
 
   /* shield (E4), collect (E3), absorb (E5) */
   shield.visible = b.save && !dying && !title; shield.position.copy(bp); shield.rotation.set(t * 0.7, t * 1.1, 0);
@@ -880,7 +886,7 @@ function updateActors(v, t, dt, dying, hitDead, restart) {
   if (deadLip) lipDeadMat.color.setRGB(1, 0.35 + 0.35 * Math.sin(t * 14), 0.4);
 
   /* the tier shockwave along the road (E8) */
-  if (shockT >= 0) { shockT += dt; const k = shockT / 0.9; shock.visible = k < 1; shock.position.copy(bp); shock.quaternion.setFromRotationMatrix(_m.makeBasis(fb.right, fb.fwd.clone().negate(), fb.up));
+  if (shockT >= 0) { shockT += dt; const k = shockT / 0.9; shock.visible = k < 1; shock.position.copy(bp); onDeck(shock.quaternion, fb);
     const r = 30 + 1400 * k; shock.scale.set(r, r, r); shock.material.color.set(TIERS[lastTier].accent); shock.material.opacity = (1 - k) * 0.9; if (k >= 1) { shockT = -1; shock.visible = false; } }
 }
 
