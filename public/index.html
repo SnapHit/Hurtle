@@ -2432,12 +2432,15 @@ function previewRefresh(){
   rZ = P.z; rX = P.x; rH = P.h;
   camX = P.x; camZ = P.z - D.CAM_BACK; camRise = 0;
 }
-function setFromX(i, x){
+function setFromFrac(i, t){
   const e = OPT[i];
-  const g = setGeom();
-  e.v = e.min + (e.max - e.min) * clamp((x - g.barX) / g.barW, 0, 1);
+  e.v = e.min + (e.max - e.min) * clamp(t, 0, 1);
   applyOpts(); saveOpts();
   if (e.gen) previewRefresh();
+}
+function setFromX(i, x){
+  const g = setGeom();
+  setFromFrac(i, (x - g.barX) / g.barW);
 }
 /* one source of truth for the layout, so the hit areas cannot drift from the
    drawing: the old code computed the bar position twice */
@@ -2504,6 +2507,64 @@ function uiHit(x, y){
   return null;
 }
 
+/* One place for what each button does. The canvas hit path and the portal
+   overlay's buttons (brief, section 3 U) both come through here with the hit
+   table's keys, so the two sets of buttons cannot drift apart. Returns true
+   when the key was taken, which is the pointer handler's cue to cancel the
+   event. 'again' and 'optFrac' only ever come from the overlay; 'menu' from a
+   paused run is the overlay's Home, which the canvas never offers. */
+function goHome(){
+  state = 'title'; paused = false; showChrome(true);
+  musPrefetch();
+  UI.menu = null; UI.settings = null;
+  previewRefresh();
+}
+function uiAction(key, arg){
+  if (!key) return false;
+  /* A cancelled pointerdown inside a frame never moves keyboard focus into it
+     (see the canvas handler), so a press that came from the overlay takes
+     focus here. For the canvas it is a repeat of what its handler just did. */
+  if (FRAMED){ try { window.focus(); } catch(e){} }
+  if (bootFlash > 0){ skipBoot(); return true; }
+  if (setOpen){
+    if (key === 'setDone'){ setOpen = false; UI.settings = null; showChrome(true); return true; }
+    if (key === 'setReset'){ resetOpts(); previewRefresh(); return true; }
+    if (key === 'optFrac'){ setFromFrac(arg.i, arg.t); return true; }
+    return false;
+  }
+  if (state === 'title'){
+    if (key === 'play')   { dailyMode = true;  audioStart(); start(); return true; }
+    if (key === 'random') { dailyMode = false; audioStart(); start(); return true; }
+    if (key === 'sound')  { audioToggle(); return true; }
+  }
+  if (key === 'share' && state === 'dead'){ doShare(); return true; }
+  if (key === 'menu' && state === 'dead'){ goHome(); return true; }
+  /* the overlay's Home on the pause screen (U3). Its own key, because the
+     death screen's HOME rectangle outlives the run it was drawn for and a tap
+     there in a paused run must go on meaning "carry on", as it always has. */
+  if (key === 'home' && state === 'play' && paused){ audioResume(); goHome(); return true; }
+  if (key === 'settings' && (state === 'title' || state === 'dead')){
+    /* The chrome is a fixed HTML footer. The panel is canvas. They do not
+       know about each other, so the bottom sliders and the buttons were
+       landing on top of the links. */
+    setOpen = true; setFrom = state; showChrome(false); previewRefresh();
+    for (const k in UI) if (k.slice(0,3) === 'opt') UI[k] = null;
+    return true;
+  }
+  if (key === 'again' && state === 'dead'){ anyInput(); return true; }
+  if (state === 'play'){
+    if (key === 'pause'){
+      paused = !paused;
+      if (paused) audioPause(); else audioResume();
+      return true;
+    }
+    if (key === 'full'){ fsToggle(); return true; }
+    if (key === 'skip'){ audioNewTrack(); return true; }
+    if (key === 'mute'){ audioToggle(); return true; }
+  }
+  return false;
+}
+
 addEventListener('keydown', e => {
   const c = e.code;
   /* Dismissing the lockup is not a game input: it must not fall through and
@@ -2523,7 +2584,9 @@ addEventListener('keydown', e => {
   else if (c === 'KeyR' && state === 'title'){ dailyMode = false; audioStart(); start(); return; }
   else if (c === 'KeyM'){ audioToggle(); return; }
   else if (c === 'KeyN'){ audioNewTrack(); return; }
-  else if ((c === 'KeyP' || c === 'Escape') && state === 'play'){
+  /* CrazyGames asks games to leave Escape alone, since it also leaves their
+     fullscreen; that copy pauses on P only (brief, section 5). */
+  else if ((c === 'KeyP' || (c === 'Escape' && PORTAL !== 'crazygames')) && state === 'play'){
     paused = !paused;
     if (paused) audioPause(); else audioResume();
     return;
@@ -3816,6 +3879,23 @@ function updateView(){
 const viewIds = new WeakMap();
 let viewNextId = 0;
 const VIEW_SPAN = [0, 0];
+/* The clock string once a second, and the death card once a run: the panels
+   show them every frame, but optsAreDefault walks the whole option table and
+   a run's cause and provenance cannot change after it ends. */
+let uiCountSec = -1, uiCountStr = '', uiDeadRun = null, uiDeadCard = null;
+function uiCountdown(){
+  const sec = Math.floor(Date.now() / 1000);
+  if (sec !== uiCountSec){ uiCountSec = sec; uiCountStr = dailyCountdown(); }
+  return uiCountStr;
+}
+function uiDead(){
+  if (uiDeadRun !== run){
+    uiDeadRun = run;
+    uiDeadCard = { cause: run.overKind, label: runLabel(), adjusted: !optsAreDefault(),
+                   best: score() >= best && score() > 0 };
+  }
+  return uiDeadCard;
+}
 function viewState(){
   const zMax = camZ + D.VIEW_Z;
   const far  = camZ + Math.max(D.VIEW_Z, K.CITY_VIEW);
@@ -3853,6 +3933,13 @@ function viewState(){
     flashO: run.flashO ? { z:run.flashO.z, x:run.flashO.x, hw:run.flashO.hw } : null,
     hud: { score: score(), mul: scoreMul() * chainMul(), chain: run.chain, chainT: run.chainT,
            tier: run.tier, tierT: run.tierT, v: speedNow(), daily: run.daily },
+    /* what the overlay screens show (U1 to U6): read only, and the dearer
+       pieces only on the screen that shows them, at the rate they change */
+    ui: { best, dailyNo: dailyNumber(), audio: audioOn(), fs: fsAvailable() ? fsOn() : null,
+          setOpen, setDrag, tierName: TIER_NAME[run.tier] || '',
+          opts: setOpen ? OPT.map(e => ({ label: e.label, t: (e.v - e.min) / (e.max - e.min), cos: !!e.cos })) : null,
+          countdown: state === 'title' ? uiCountdown() : null,
+          dead: state === 'dead' ? uiDead() : null, lock: run.inputLock > 0 },
     gap: !!gapAt(rZ), shake: run.shake || 0,
     world: {
       slices,
@@ -4504,7 +4591,7 @@ function boot(){
   ctx = cv.getContext('2d', { alpha:false });
   derive();
   resize();
-  if (HD) HD.init(cv, document.body);
+  if (HD) HD.init(cv, document.body, uiAction);
   if (bootFlash > 0){ try { document.documentElement.classList.add('booting'); } catch(e){} }
   else bootChromeHidden = false;
   addEventListener('resize', resize);
@@ -4527,45 +4614,16 @@ function boot(){
       const hit = uiHit(e.clientX / ZOOM, e.clientY / ZOOM);
       if (setOpen){
         e.preventDefault();
-        if (hit === 'setDone'){ setOpen = false; UI.settings = null; showChrome(true); return; }
-        if (hit === 'setReset'){ resetOpts(); previewRefresh(); return; }
-        if (hit && hit.slice(0,3) === 'opt'){
-          setDrag = +hit.slice(3); setFromX(setDrag, e.clientX / ZOOM);
-        }
+        /* a slider row starts a drag that pointermove carries on; the panel
+           owns the screen, so a miss is swallowed rather than passed on */
+        if (hit && hit.slice(0,3) === 'opt'){ setDrag = +hit.slice(3); setFromX(setDrag, e.clientX / ZOOM); }
+        else uiAction(hit);
         return;
       }
-      if (state === 'title'){
-        if (hit === 'play')   { dailyMode = true;  audioStart(); start(); e.preventDefault(); return; }
-        if (hit === 'random') { dailyMode = false; audioStart(); start(); e.preventDefault(); return; }
-        if (hit === 'sound')  { audioToggle(); e.preventDefault(); return; }
-      }
-      if (hit === 'share' && state === 'dead'){ doShare(); e.preventDefault(); return; }
-      if (hit === 'menu' && state === 'dead'){
-        state = 'title'; paused = false; showChrome(true);
-        musPrefetch();
-        UI.menu = null; UI.settings = null;
-        previewRefresh();
-        e.preventDefault(); return;
-      }
-      if (hit === 'settings'){
-        /* The chrome is a fixed HTML footer. The panel is canvas. They do not
-           know about each other, so the bottom sliders and the buttons were
-           landing on top of the links. */
-        setOpen = true; setFrom = state; showChrome(false); previewRefresh();
-        for (const k in UI) if (k.slice(0,3) === 'opt') UI[k] = null;
-        e.preventDefault(); return;
-      }
+      if (uiAction(hit)){ e.preventDefault(); return; }
     }
     if (state === 'play'){
-      const h2 = uiHit(e.clientX / ZOOM, e.clientY / ZOOM);
-      if (h2 === 'pause'){
-        paused = !paused;
-        if (paused) audioPause(); else audioResume();
-        e.preventDefault(); return;
-      }
-      if (h2 === 'full'){ fsToggle(); e.preventDefault(); return; }
-      if (h2 === 'skip'){ audioNewTrack(); e.preventDefault(); return; }
-      if (h2 === 'mute'){ audioToggle(); e.preventDefault(); return; }
+      if (uiAction(uiHit(e.clientX / ZOOM, e.clientY / ZOOM))){ e.preventDefault(); return; }
       if (paused){ paused = false; audioResume(); e.preventDefault(); return; }
     }
     try { cv.setPointerCapture(e.pointerId); } catch(err){}

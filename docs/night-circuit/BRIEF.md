@@ -284,5 +284,6 @@ happytime, and the host's mute.
 - Site pixels: identical 2D screenshots at the recorded frames.
 - `grep` of `public/` finds no three.js, no font files, no `hd/` path, no SDK tag.
 - Both portal builds print 6 or more files, stay under 20 MB, and the Newgrounds
-  copy contains no `http` URL apart from the SVG namespace.
+  copy contains no fetched URL; licence text excepted by name (the build allows
+  the two font licence files under `hd/fonts` and fails on any other address).
 - `git status` shows nothing from `dist/`, `node_modules/` or render output.

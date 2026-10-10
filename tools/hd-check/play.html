@@ -2,6 +2,7 @@
 <html><head><meta charset="utf-8">
 <style>html,body{margin:0;background:#000;overflow:hidden;width:100%;height:100%}#c{display:block;width:100%;height:100%}</style>
 <script type="importmap">{"imports":{"three":"../../portal/hd/vendor/three.module.min.js"}}</script>
+<link rel="stylesheet" href="../../portal/hd/ui.css">
 </head><body>
 <canvas id="c"></canvas>
 <script type="module">
@@ -10,8 +11,11 @@
    side by side. Each recorded frame is turned into the snapshot viewState() would
    have built for it. Query: seq, w, h (pixels), from and t0 (the clip clock,
    exactly as anim.html: t = (i - from) / 30 + t0, so pulses and staged blocks
-   sit at the same point of their cycle as the reference frame), stage. */
+   sit at the same point of their cycle as the reference frame), stage, and
+   ui=title|pause|dead|settings, which puts that screen over the frame with the
+   reference's sample values (anim.html's ui= does the same). */
 import HD from '../../portal/hd/renderer.js';
+import { SAMPLE } from '../../portal/hd/screens.js';
 const q = new URLSearchParams(location.search);
 const SEQ = await fetch('../hd-reference/seq-' + q.get('seq') + '.json').then(r => r.json());
 const F = SEQ.frames, SL = SEQ.world.slices;
@@ -24,6 +28,8 @@ const FROM = +(q.get('from') || 0), T0 = +(q.get('t0') || 0);
 const clipT = i => (i - FROM) / 30 + T0;
 /* stage=: override obstacle kinds by id, exactly as anim.html does, so a still
    can show a sliding, rising or dropping block where the run had a static one */
+const UIK = q.get('ui') || '';
+const TIER_NAMES = ['DRIFT', 'RUSH', 'PLUNGE', 'FREEFALL', 'TERMINAL', 'ESCAPE VELOCITY'];
 const STAGE = q.get('stage') ? JSON.parse(decodeURIComponent(q.get('stage'))) : {};
 function staged(obs, t){
   return obs.map(o0 => { const o = Object.assign({}, o0, STAGE[o0.id] || {});
@@ -39,7 +45,10 @@ function viewOf(i, dt, t){
   if (t === undefined) t = clipT(i);
   const f = F[i], camZ = f.cam.z, far = camZ + Math.max(f.cam.viewZ, CITY_VIEW);
   return Object.assign({}, f, {
-    dt, animT: t, paused: false, W: LW, H: LH, ZOOM, DPR,
+    dt, animT: t, paused: UIK === 'pause', W: LW, H: LH, ZOOM, DPR,
+    state: UIK === 'title' ? 'title' : UIK === 'dead' ? 'dead' : f.state,
+    hud: UIK === 'dead' ? Object.assign({}, f.hud, { score: 1952 }) : f.hud,
+    ui: Object.assign({}, SAMPLE, { setOpen: UIK === 'settings', tierName: UIK === 'dead' ? 'PLUNGE' : (TIER_NAMES[f.hud.tier] || '') }),
     cam: Object.assign({}, f.cam, { shakeX: 0, shakeY: 0 }),
     obs: staged(f.obs, t),
     world: {
@@ -60,7 +69,7 @@ window.renderFrame = function(i){
 /* the same frame at a different clock, for the "drawn but not moving" check */
 window.renderAt = function(i, t){ HD.render(viewOf(i, 1 / 30, t)); return HD.debug.stats; };
 window.HD = HD;
-HD.init(document.getElementById('c'), document.body);
+HD.init(document.getElementById('c'), document.body, (key, arg) => console.log('uiAction', key, JSON.stringify(arg || null)));
 window.__ready = { frames: F.length, slices: SL.length, towers: SEQ.world.towers.length };
 </script>
 </body></html>

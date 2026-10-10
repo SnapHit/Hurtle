@@ -185,7 +185,7 @@ def copy_hd(out):
                 fail('%s still contains %r' % (rel, needle))
         urls = set(re.findall(r'https?://[^\s"\'<>)]+', low))
         urls -= {'http://www.w3.org/2000/svg', 'http://www.w3.org/1999/xhtml'}
-        if os.path.basename(f).startswith('LICENSE'):
+        if rel.replace(os.sep, '/') in ('hd/fonts/LICENSE.saira', 'hd/fonts/LICENSE.unbounded'):
             if urls:
                 licences.append(rel)
             continue

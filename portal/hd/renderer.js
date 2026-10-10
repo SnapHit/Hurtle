@@ -15,6 +15,7 @@
    here reads or writes the simulation; render(view) only reads the snapshot.
    ========================================================================== */
 import * as THREE from 'three';
+import { createScreens } from './screens.js';
 import { EffectComposer } from './vendor/postprocessing/EffectComposer.js';
 import { RenderPass } from './vendor/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from './vendor/postprocessing/UnrealBloomPass.js';
@@ -112,7 +113,7 @@ let ball, ballLight, ballGlow, shadow, shield, burstRing, pick, crystal, pickBea
 let trail = [], hist = [], TRN = 22;
 let spkGeo, spkPos, sparksPts, shardMesh, fragMesh, frag = [], deathEdge, shock, streaks, stGeo, stPos, stSeed = [], NST = 260, lipDeadMat;
 let prevView = null, flashT = -1, burstT = -1, shockT = -1, fragT = -1, fallShakeT = -1, killerId = null, deadLip = null;
-let vig = null;
+let vig = null, vigBg = null, screens = null;
 const SPK = 600;
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _m = new THREE.Matrix4(), _c1 = new THREE.Color(), _c2 = new THREE.Color(), _c3 = new THREE.Color();
 
@@ -626,8 +627,8 @@ function ensureSize(v) {
    init(canvas, overlayRoot)
    ========================================================================== */
 let dead = false;
-export function init(canvas, overlayRoot) {
-  try { return initInner(canvas, overlayRoot); }
+export function init(canvas, overlayRoot, action) {
+  try { return initInner(canvas, overlayRoot, action); }
   catch (e) {
     /* WebGL probed fine but the renderer still could not stand up. The game
        must not be left with a canvas nobody paints: everything this made is
@@ -638,7 +639,7 @@ export function init(canvas, overlayRoot) {
     return false;
   }
 }
-function initInner(canvas, overlayRoot) {
+function initInner(canvas, overlayRoot, action) {
   gl = document.createElement('canvas'); gl.id = 'hd';
   /* Over the 2D canvas, which is never painted while HD is set, and under the
      overlay. Pointer events pass through to the game's own canvas. */
@@ -673,6 +674,7 @@ function initInner(canvas, overlayRoot) {
   moon = new THREE.DirectionalLight(0x8a9cff, 0.55); scene.add(moon, moon.target);
   buildMaterials();
   buildActors({ BALL_R: 10.5 });   // re-sized from the view's K on the first frame
+  screens = createScreens(uiRoot, action);   // U1 to U6, over the vignette
 
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, cam));
@@ -760,8 +762,11 @@ export function render(v) {
   rgb.uniforms.amount.value = rgbA; rgb.uniforms.angle.value = t * 3; rgb.enabled = rgbA > 0;
   bloom.strength = Q.bloom ? bloomBase + (shockT >= 0 ? Math.max(0, 0.4 - shockT) * 0.8 : 0) : 0;
   bloom.enabled = Q.bloom;
-  vig.style.background = dying ? `radial-gradient(ellipse at center, rgba(40,0,10,0) 30%, rgba(40,0,10,${Math.min(0.75, 0.3 + (fragT >= 0 ? fragT : 0.4) * 0.4)}) 100%)`
-                               : 'radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,8,0.45) 100%)';
+  /* the screens draw after the scene; a screen's own scrim replaces the
+     vignette while it is up, and the style is written only when it changes */
+  const scrim = (screens ? screens.update(v) : null) || (dying ? `radial-gradient(ellipse at center, rgba(40,0,10,0) 30%, rgba(40,0,10,${Math.min(0.75, 0.3 + (fragT >= 0 ? fragT : 0.4) * 0.4)}) 100%)`
+                               : 'radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,8,0.45) 100%)');
+  if (scrim !== vigBg) { vigBg = scrim; vig.style.background = scrim; }
   composer.render();
   prevView = { state: v.state, save: v.ball.save, flashT: v.flashT, t: v.t };
 
@@ -875,7 +880,7 @@ export function setQuality(level) {
   for (const tc of towerChunks.values()) for (const b of tc.boards) b.visible = Q.boards;
   W = -1;   // force a size pass so the pixel ratio cap takes effect
 }
-export const debug = { stats, TIERS, Q, get scene() { return scene; }, get renderer() { return renderer; },
+export const debug = { stats, TIERS, Q, get scene() { return scene; }, get renderer() { return renderer; }, get screens() { return screens; },
   /* the effect timers, for scripted checks: a restart must not arm the E8 shock, a pause must freeze them */
   effects: () => ({ shockT, tierBlend, lastTier, tierFrom, flashT, burstT, fallShakeT, fragT, shockVisible: !!(shock && shock.visible), streaksVisible: !!(streaks && streaks.visible), streakOpacity: streaks ? streaks.material.opacity : null }) };
 export default { init, render, setQuality, debug };
