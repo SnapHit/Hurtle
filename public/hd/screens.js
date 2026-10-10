@@ -105,8 +105,16 @@ export function createScreens(root, action) {
   const dProv = slot(el('div', 'hd-small hd-prov', dGlass));
   const dRow = el('div', 'hd-row', dGlass);
   pill(dRow, 'hd-dhome', 'Home', 'menu');
+  /* the site's share button; a portal has none, as the 2D game draws it */
+  const dShare = pill(dRow, 'hd-share', 'Share', 'share'); const dShareT = slot(dShare);
   pill(dRow, 'hd-hot hd-again', 'Go again', 'again');
   const dAny = el('div', 'hd-small hd-any', dGlass, 'or press anything');
+  /* site only: offered once the renderer has decided this device cannot keep up
+     even on Low. The page has already been set to open in Classic next time. */
+  const dSlow = el('div', 'hd-slow', dGlass);
+  el('div', 'hd-small', dSlow, 'Running slowly on this device');
+  const slowPill = el('div', 'hd-pill hd-classic', dSlow, 'Switch to Classic');
+  press(slowPill, 'look', 'classic');
 
   /* ---- U5 settings ---- */
   const settings = el('div', 'hd-screen hd-settings', root);
@@ -136,7 +144,7 @@ export function createScreens(root, action) {
   const screens = { title, pause, dead, settings };
   for (const k in screens) screens[k].style.display = 'none';   // nothing shows until the first frame says what to
   hud.style.display = 'none';
-  let cw = 0, ch = 0, portrait = null, mode = null, hudOn = null, hudAlpha = null, lastTierT = -1, fsShown = null, audioShown = null;
+  let sNow = 1, tierUp = null, cw = 0, ch = 0, portrait = null, mode = null, hudOn = null, hudAlpha = null, lastTierT = -1, fsShown = null, audioShown = null;
   const show = (node, on) => { const d = on ? '' : 'none'; if (node.style.display !== d) node.style.display = d; };
 
   /* called once per frame with the view snapshot; returns the scrim this
@@ -147,6 +155,7 @@ export function createScreens(root, action) {
     if (w !== cw || h !== ch) {
       cw = w; ch = h; const p = h > w;
       const u = Math.min(w, h * 1.25) / 100, s = Math.min(1.25, Math.max(0.8, v.H / 720)) * v.ZOOM;
+      sNow = s;
       root.style.setProperty('--u', u + 'px'); root.style.setProperty('--s', s + 'px');
       root.style.setProperty('--cw', w + 'px'); root.style.setProperty('--ch', h + 'px');
       if (p !== portrait) { portrait = p; root.classList.toggle('hd-portrait', p); }
@@ -173,6 +182,12 @@ export function createScreens(root, action) {
         show(banner, true); bannerT(name); bannerO(a.toFixed(3)); bannerX('scale(' + sc.toFixed(4) + ') skewX(-8deg)');
         show(tier, false); lastTierT = hd.tierT;
       } else { if (lastTierT !== 0) { show(banner, false); show(tier, true); lastTierT = 0; } tierT(name); }
+      /* the tier name sits between the corner buttons; on a narrow screen a long
+         one (ESCAPE VELOCITY on a phone, or a cabinet) would run under them, so
+         it moves up above the row. 0.92em a letter is Saira 600 with the
+         tracking, and 126 is where the inner buttons end. */
+      const up = name.length * 0.92 * 12 * sNow / 2 > cw / 2 - 126 * sNow - 4;
+      if (up !== tierUp) { tierUp = up; tier.classList.toggle('hd-up', up); }
       const fs = ui.fs === null || ui.fs === undefined ? 'none' : ui.fs ? 'on' : 'off';
       if (fs !== fsShown) { fsShown = fs; show(bFull, fs !== 'none'); bFull.innerHTML = fs === 'on' ? ICON.unfull : ICON.full; }
       if (ui.audio !== audioShown) { audioShown = ui.audio; bMute.innerHTML = ui.audio ? ICON.sound : ICON.muted; }
@@ -189,6 +204,9 @@ export function createScreens(root, action) {
       dBest.classList.toggle('hd-new', !!d.best); dBestT(d.best ? 'New best' : 'Best ' + fmt(ui.best));
       dProv(d.label + ' · ' + (d.adjusted ? 'adjusted' : 'unchanged') + ' · ' + (ui.tierName || '').toLowerCase());
       show(dAny, !ui.lock);
+      const site = !!ui.site; show(dShare, site); dRow.classList.toggle('hd-three', site);
+      if (site) dShareT(ui.shared ? 'Copied' : 'Share');
+      show(dSlow, site && !!v.hdSlow);
       return 'radial-gradient(ellipse at center, rgba(30,0,12,0.45) 0%, rgba(20,0,10,0.75) 100%)';
     }
     if (m === 'settings') {

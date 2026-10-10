@@ -23,15 +23,14 @@ The portal copy differs from the site in these ways only:
      canonical, icons, Open Graph and Twitter tags, the JSON-LD, and the footer
      with the cluster page links. Portals expect a game, not an advert.
   4. The title loses its tagline.
-  5. The Night Circuit renderer. portal/hd/ is copied into the zip as hd/
-     (three.js, the renderer, the fonts, the overlay styles), and the game's
-     one hook line is pointed at it. Module scripts always run after the
-     document has been parsed, so the game's inline script cannot see the
-     renderer; the script is therefore written out as game.js and loaded with
-     defer, which the HTML spec orders after the module in document order.
-     If the module fails to load, or WebGL is unavailable, hd/boot.js leaves
-     window.HURTLE_HD unset and the game falls back to its 2D painter by
-     itself. --no-hd skips all of this and builds today's look.
+  5. The Night Circuit renderer, always on. The site picks Night Circuit or
+     Classic in a small script at the top of index.html; a portal copy has no
+     Classic, so that script is replaced by the three tags it would have
+     written: the import map, the overlay styles and hd/boot.js. public/hd/ is
+     copied into the zip as hd/. If the module fails to load, or WebGL is
+     unavailable, hd/boot.js leaves window.HURTLE_HD unset and the game falls
+     back to its 2D painter by itself. --no-hd drops the tags and the folder
+     and builds the 2D look.
 
 Every substitution asserts how many times it matched, so a change to the game
 that moves one of these lines fails the build loudly rather than shipping a
@@ -45,29 +44,13 @@ import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'public')
-HD_SRC = os.path.join(ROOT, 'portal', 'hd')
+HD_SRC = os.path.join(SRC, 'hd')
 SDK_TAG = '<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>'
 # portal -> the SDK tag it needs, if any
 PORTALS = {'crazygames': SDK_TAG, 'newgrounds': None}
 TRACKS = ['track-%d.m4a' % i for i in range(1, 6)]
-IMPORT_MAP = '<script type="importmap">{"imports":{"three":"./hd/vendor/three.module.min.js"}}</script>'
-BOOT_JS = """/* Loads the Night Circuit renderer ahead of the game. A static import, so
-   this module does not finish until the renderer and three.js are in; the game
-   script is deferred behind it, so by the time it reads window.HURTLE_HD the
-   renderer is either here or deliberately absent. If anything in the import
-   graph fails, this module fails, HURTLE_HD stays unset and the game paints
-   its own 2D canvas. WebGL is probed first for the same reason. */
-import renderer from './renderer.js';
-(function(){
-  try {
-    const c = document.createElement('canvas');
-    const g = c.getContext('webgl2') || c.getContext('webgl');
-    if (!g) return;
-    const lose = g.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext();   // the probe is not the renderer's context
-  } catch (e) { return; }
-  window.HURTLE_HD = renderer;
-})();
-"""
+HD_TAGS = ('<script type="importmap">{"imports":{"three":"./hd/vendor/three.module.min.js"}}</script>\n'
+           '<link rel="stylesheet" href="hd/ui.css">\n<script type="module" src="hd/boot.js"></script>')
 
 def fail(msg):
     sys.exit('build_portal: ' + msg)
@@ -80,12 +63,12 @@ def sub(html, pattern, repl, expect, flags=0):
     return new
 
 
-def build_html(html, portal, hd):
+def build_html(html, game_js, portal, hd):
     sdk = PORTALS[portal]
-    html = sub(html, r"const PORTAL = null;", "const PORTAL = '%s';" % portal, 1)
+    game_js = sub(game_js, r"const PORTAL = null;", "const PORTAL = '%s';" % portal, 1)
     # The share button is hidden on the portal; this removes the address from
     # the text it would have built as well, so the copy carries no URL at all.
-    html = sub(html, r"\(PORTAL \? '' : '\\nhurtle\.site'\)", "''", 1)
+    game_js = sub(game_js, r"\(PORTAL \? '' : '\\nhurtle\.site'\)", "''", 1)
     html = sub(html, r'<title>[^<]*</title>', '<title>Hurtle</title>', 1)
     html = sub(html, r'<meta name="description"[^>]*>\n', '', 1)
     html = sub(html, r'<link rel="canonical"[^>]*>\n', '', 1)
@@ -93,39 +76,20 @@ def build_html(html, portal, hd):
     html = sub(html, r'<link rel="(?:icon|apple-touch-icon)"[^>]*>\n', '', 2)
     html = sub(html, r'<meta (?:property="og:|name="twitter:)[^>]*>\n', '', 13)
     html = sub(html, r'<script type="application/ld\+json">.*?</script>\n', '', 1, re.S)
+    # the footer with the cluster links, and the look switch that lives in it
     html = sub(html, r'<div id="chrome">.*?</div>\n</div>\n', '', 1, re.S)
+    html = sub(html, r'<!-- The switch between the two looks\..*?</script>\n', '', 1, re.S)
+    # the site's Night Circuit or Classic choice: a portal is Night Circuit only
+    html = sub(html, r'<!-- Night Circuit or Classic, decided.*?</script>\n', (HD_TAGS + '\n') if hd else '', 1, re.S)
     # Before the stylesheet, so the SDK is defined long before boot() runs at
     # the end of the body.
     if sdk:
         html = sub(html, r'<style>', sdk + '\n<style>', 1)
-
-    game_js = None
-    if hd:
-        # The game script comes out into its own file so it can be deferred
-        # behind the renderer module (see the docstring). It is the one large
-        # inline script; the tiny ones stay where they are.
-        scripts = [(m.start(), m.end(), m.group(1)) for m in re.finditer(r'<script>(.*?)</script>', html, re.S)]
-        big = max(scripts, key=lambda s: len(s[2])) if scripts else (0, 0, '')
-        if len(big[2]) < 100000:
-            fail('could not find the game script to extract')
-        game_js = big[2]
-        game_js = sub(game_js, r"const HD = null;", "const HD = window.HURTLE_HD || null;", 1)
-        # The game fullscreens its own canvas, and a fullscreen element hides its
-        # siblings, which is where the renderer's canvas and the overlay live. With
-        # the renderer in, the whole document goes fullscreen instead; fsOn() reads
-        # document.fullscreenElement either way, and fsAvailable() still asks the
-        # canvas whether the API exists, which is the same answer.
-        game_js = sub(game_js,
-                      r"p = cv\.requestFullscreen \? cv\.requestFullscreen\(\)\n\s*: cv\.webkitRequestFullscreen \? cv\.webkitRequestFullscreen\(\) : null;",
-                      "p = document.documentElement.requestFullscreen ? document.documentElement.requestFullscreen()\n        : document.documentElement.webkitRequestFullscreen ? document.documentElement.webkitRequestFullscreen() : null;", 1)
-        html = (html[:big[0]]
-                + '<script type="module" src="hd/boot.js"></script>\n<script defer src="game.js"></script>'
-                + html[big[1]:])
-        html = sub(html, r'<meta charset="utf-8">', '<meta charset="utf-8">\n' + IMPORT_MAP, 1)
-        html = sub(html, r'</head>', '<link rel="stylesheet" href="hd/ui.css">\n</head>', 1)
+    if html.count('<script defer src="game.js"></script>') != 1:
+        fail('index.html does not load game.js exactly once')
 
     # The checks that matter, made on the output rather than trusted from above.
-    for text, label in ((html, 'index.html'), (game_js or '', 'game.js')):
+    for text, label in ((html, 'index.html'), (game_js, 'game.js')):
         for needle in ('hurtle.site', 'snap-hit.online', 'beakdown', 'slope-2',
                        'slope-3', 'slope-online', 'href="/', 'src="/', "'/music"):
             if needle in text.lower():
@@ -143,26 +107,24 @@ def build_html(html, portal, hd):
             fail('unexpected URL(s) in %s: %s' % (label, ', '.join(sorted(extra))))
     if html.count(SDK_TAG) != (1 if sdk else 0):
         fail('SDK tag missing, duplicated or in the wrong copy')
-    if hd and 'window.HURTLE_HD' not in game_js:
-        fail('the HD hook was not pointed at the renderer')
-    if hd and 'cv.requestFullscreen()' in game_js:
-        fail('the game still fullscreens its own canvas, which would hide the renderer')
+    if 'const HD = window.HURTLE_HD || null;' not in game_js:
+        fail('the HD hook is not pointed at the renderer')
+    if hd != ('hd/boot.js' in html) or 'look=' in html or 'HURTLE_LOOK' in html:
+        fail('the renderer tags are wrong for this build, or the site choice survived')
     return html, game_js
 
 
 def copy_hd(out):
     if not os.path.isdir(HD_SRC):
-        fail('portal/hd/ is missing; build with --no-hd for the 2D look')
+        fail('public/hd/ is missing; build with --no-hd for the 2D look')
     dst = os.path.join(out, 'hd')
     shutil.copytree(HD_SRC, dst, ignore=shutil.ignore_patterns('*.md', '.DS_Store'))   # notes stay out of the zip, licences go in
-    with open(os.path.join(dst, 'boot.js'), 'w', encoding='utf-8', newline='\n') as f:
-        f.write(BOOT_JS)
     files = []
     for dp, _, fns in os.walk(dst):
         for fn in fns:
             files.append(os.path.join(dp, fn))
     files.sort()        # a reproducible archive
-    for must in ('renderer.js', 'ui.css', os.path.join('vendor', 'three.module.min.js')):
+    for must in ('boot.js', 'renderer.js', 'screens.js', 'ui.css', os.path.join('vendor', 'three.module.min.js')):
         if not os.path.isfile(os.path.join(dst, must)):
             fail('hd/ is missing ' + must)
     # Nothing in hd/ may fetch from anywhere or point at the site: every text
@@ -205,18 +167,20 @@ def main():
     OUT = os.path.join(ROOT, 'dist', portal)
     ZIP = os.path.join(ROOT, 'dist', 'hurtle-%s.zip' % portal)
     with open(os.path.join(SRC, 'index.html'), encoding='utf-8') as f:
-        html, game_js = build_html(f.read(), portal, hd)
+        page = f.read()
+    with open(os.path.join(SRC, 'game.js'), encoding='utf-8') as f:
+        game = f.read()
+    html, game_js = build_html(page, game, portal, hd)
 
     if os.path.isdir(OUT):
         shutil.rmtree(OUT)
     os.makedirs(os.path.join(OUT, 'music'))
     with open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
         f.write(html)
-    members = [('index.html', zipfile.ZIP_DEFLATED)]
+    with open(os.path.join(OUT, 'game.js'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(game_js)
+    members = [('index.html', zipfile.ZIP_DEFLATED), ('game.js', zipfile.ZIP_DEFLATED)]
     if hd:
-        with open(os.path.join(OUT, 'game.js'), 'w', encoding='utf-8', newline='\n') as f:
-            f.write(game_js)
-        members.append(('game.js', zipfile.ZIP_DEFLATED))
         for f in copy_hd(OUT):
             rel = os.path.relpath(f, OUT).replace(os.sep, '/')
             # woff2 is already compressed; store it

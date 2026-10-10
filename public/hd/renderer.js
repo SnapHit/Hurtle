@@ -43,6 +43,25 @@ const Q = { level: 'high', bloom: true, boards: true, traffic: true, beams: true
    measuring again next time. */
 const QKEY = 'hurtle_hd_quality_v1', Q_FPS = 50, Q_SKIP = 10, Q_SECS = 2;
 let qAuto = null;
+/* The site's last resort. Once the level is Low, play keeps being timed in
+   eight second windows; below 30 a second, this device is marked to open in
+   Classic from its next visit and the death screen offers the switch now. A
+   choice the player made themselves ('hd') is never overridden, and a portal
+   (no ui.site) never leaves Night Circuit. */
+const LOOK_KEY = 'hurtle_look_v1', SLOW_FPS = 30, SLOW_SECS = 8;
+let slowW = { n: 0, t: 0 }, slow = false;
+function watchSlow(v) {
+  if (slow || Q.level !== 'low' || qAuto || !v.ui || !v.ui.site) return;
+  if (v.state !== 'play' || v.paused || (typeof document !== 'undefined' && document.hidden)) return;
+  slowW.n++; slowW.t += v.dt;
+  if (slowW.t < SLOW_SECS) return;
+  const fps = slowW.n / slowW.t; slowW = { n: 0, t: 0 }; stats.slowFps = +fps.toFixed(1);
+  if (fps >= SLOW_FPS) return;
+  let chosen = null; try { chosen = localStorage.getItem(LOOK_KEY); } catch (e) {}
+  if (chosen === 'hd') return;
+  slow = true;
+  try { localStorage.setItem(LOOK_KEY, 'classic-auto'); } catch (e) {}
+}
 function storedQuality() { try { const v = localStorage.getItem(QKEY); return v === 'low' || v === 'high' ? v : null; } catch (e) { return null; } }
 
 /* ---------------- streaming geometry ---------------- */
@@ -706,7 +725,7 @@ let lastBoardT = -1;
 export function render(v) {
   if (dead) { if (typeof draw === 'function') draw(); return; }
   if (!renderer) return;
-  measureQuality(v);
+  measureQuality(v); watchSlow(v); v.hdSlow = slow;
   renderer.info.reset();
   ensureSize(v);
   /* effect timers run on game time, so they freeze behind the pause veil like

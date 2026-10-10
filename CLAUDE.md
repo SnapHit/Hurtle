@@ -1,8 +1,9 @@
 # Hurtle
 
 A browser game at https://hurtle.site, plus a three page SEO cluster around it.
-Vanilla JavaScript in one self contained HTML file. No framework, no build step,
-no runtime dependency.
+Vanilla JavaScript: one page, one game script and the Night Circuit renderer, all
+served from the site itself. No framework, no build step, no runtime dependency
+fetched from anywhere else.
 
 ## How this deploys
 
@@ -54,10 +55,35 @@ their entire CSS, so this is consistent rather than a new sin. Leave it.
 
 ## The game file
 
-`public/index.html` is around 187 KB raw, about 60 KB gzipped, which is what
-Cloudflare actually serves. Judge size by the compressed figure.
+`public/index.html` is the page: meta tags, the boot splash, the footer links and
+two small scripts. The game itself is `public/game.js`, around 210 KB raw and
+about 70 KB gzipped, which is what Cloudflare actually serves. Judge size by the
+compressed figure.
 
-Inside it:
+## Two looks: Night Circuit and Classic
+
+Night Circuit is the default. It is a three.js renderer in `public/hd/` that
+draws the same game: `game.js` runs the simulation either way and only the
+painter changes. Classic is the original 2D canvas. Which one loads is decided by
+a script at the end of `<head>` in `index.html`, before anything else loads:
+
+- `?look=classic` or `?look=hd` for one visit. `/classic` redirects to the first.
+- Otherwise `localStorage` key `hurtle_look_v1`: `classic` is a player's choice,
+  `classic-auto` is the renderer's fallback for a device that cannot hold 30
+  frames a second even on Low, `hd` is a player's choice that the fallback must
+  never override.
+- For Night Circuit that script writes the import map, `hd/ui.css` and the
+  `hd/boot.js` module with `document.write`, so the module stays parser-inserted
+  and `game.js`, which is deferred, runs after it. Do not replace this with
+  `createElement`: an inserted module is async and the game would start before
+  the renderer exists.
+- If the module fails or WebGL is missing, `window.HURTLE_HD` stays unset and the
+  game draws Classic by itself. A Classic visitor downloads none of `hd/`.
+
+Classic must stay pixel-identical to what the site served before Night Circuit:
+check `?look=classic` against the previous commit at the same seed and frames.
+
+Inside `game.js`:
 
 - **The `K` block** holds every feel constant. Changing one changes how the game
   plays. Do not touch it for a cosmetic fix.
@@ -93,12 +119,14 @@ newgrounds` write `dist/hurtle-<portal>.zip`, the file uploaded to that portal.
 This is packaging, not a build step for the site: it reads `public/` and never
 writes to it, and `dist/` is ignored by git.
 
-A copy differs from the site through one line, `const PORTAL = null;`, which the
-script sets to the portal's name. With it set: no share button, and sound on by
-default. CrazyGames additionally loses the fullscreen button (they ban custom
-ones) and gets the SDK bridge (`HOST`) and the SDK tag. Every copy is stripped
-of links to hurtle.site and snap-hit.online, and the script fails loudly if any
-survive. The SDK tag must never appear in `public/` or in a non-CrazyGames copy.
+A copy differs from the site through one line in `game.js`, `const PORTAL =
+null;`, which the script sets to the portal's name. With it set: no share button,
+no look switch, and sound on by default. CrazyGames additionally loses the
+fullscreen button (they ban custom ones) and gets the SDK bridge (`HOST`) and the
+SDK tag. Every copy is stripped of links to hurtle.site and snap-hit.online, and
+the script fails loudly if any survive. A portal copy is always Night Circuit:
+the look choice script is replaced by the tags it would have written. The SDK tag
+must never appear in `public/` or in a non-CrazyGames copy.
 
 After any change to the game, rebuild the zips and upload them again. Keep the
 five music paths relative.

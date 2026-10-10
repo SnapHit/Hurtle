@@ -27,8 +27,9 @@
 .hd-tag{position:absolute;left:0;right:0;text-align:center;font-weight:600;letter-spacing:.32em;text-transform:uppercase}
 .hd-daily{top:calc(var(--s)*110);font-size:calc(var(--s)*11);color:#9fe8ff;opacity:.75}
 .hd-thread{top:calc(var(--s)*128);font-size:calc(var(--s)*14);color:#5cff9a;text-shadow:0 0 12px rgba(60,255,140,.8)}
-.hd-teach{top:calc(var(--s)*150);font-size:calc(var(--s)*14);color:#5cff9a;text-shadow:0 0 12px rgba(60,255,140,.8)}
+.hd-teach{top:calc(var(--s)*150);font-size:min(calc(var(--s)*14),calc(var(--cw)/23));white-space:nowrap;color:#5cff9a;text-shadow:0 0 12px rgba(60,255,140,.8)}
 .hd-tier{bottom:calc(var(--s)*44);font-size:calc(var(--s)*12);opacity:.55}
+.hd-tier.hd-up{bottom:calc(var(--s)*80)}
 .hd-banner{position:absolute;left:0;right:0;text-align:center;font-family:Unbounded;font-weight:900;font-style:italic;letter-spacing:.06em;
   top:calc(var(--ch)*0.27);font-size:calc(var(--s)*64);color:#fff;text-shadow:0 0 30px rgba(255,80,170,.9),0 0 70px rgba(255,80,170,.6)}
 .hd-btn{position:absolute;width:calc(var(--s)*46);height:calc(var(--s)*46);top:calc(var(--ch) - var(--s)*68);
@@ -104,6 +105,12 @@
 .hd-dhome{width:calc(var(--u)*12*var(--sc));height:calc(var(--u)*4.4*var(--sc));font-size:calc(var(--u)*1.3*var(--sc))}
 .hd-again{width:calc(var(--u)*18*var(--sc));height:calc(var(--u)*4.4*var(--sc));font-size:calc(var(--u)*1.4*var(--sc))}
 .hd-any{font-size:calc(var(--u)*1.1*var(--sc));margin-top:calc(var(--u)*1.6)}
+.hd-share{height:calc(var(--u)*4.4*var(--sc));font-size:calc(var(--u)*1.3*var(--sc))}
+.hd-three .hd-dhome,.hd-three .hd-share{width:calc(var(--u)*10*var(--sc))}
+.hd-three .hd-again{width:calc(var(--u)*15*var(--sc))}
+.hd-slow{margin-top:calc(var(--u)*2.2);display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*1)}
+.hd-slow .hd-small{font-size:calc(var(--u)*1.1*var(--sc));color:#ffb36b}
+.hd-classic{width:calc(var(--u)*20*var(--sc));height:calc(var(--u)*3.6*var(--sc));font-size:calc(var(--u)*1.1*var(--sc))}
 
 /* U5 settings */
 .hd-settings{--sc:1;--tw:calc(var(--u)*26)}

@@ -1,12 +1,12 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
 <style>html,body{margin:0;background:#000;overflow:hidden;width:100%;height:100%}#c{display:block;width:100%;height:100%}</style>
-<script type="importmap">{"imports":{"three":"../../portal/hd/vendor/three.module.min.js"}}</script>
-<link rel="stylesheet" href="../../portal/hd/ui.css">
+<script type="importmap">{"imports":{"three":"../../public/hd/vendor/three.module.min.js"}}</script>
+<link rel="stylesheet" href="../../public/hd/ui.css">
 </head><body>
 <canvas id="c"></canvas>
 <script type="module">
-/* Drives portal/hd/renderer.js from a recording made by tools/hd-reference/seq.cjs,
+/* Drives public/hd/renderer.js from a recording made by tools/hd-reference/seq.cjs,
    so the same frames the approved renderer drew can be drawn by this one and put
    side by side. Each recorded frame is turned into the snapshot viewState() would
    have built for it. Query: seq, w, h (pixels), from and t0 (the clip clock,
@@ -14,8 +14,8 @@
    sit at the same point of their cycle as the reference frame), stage, and
    ui=title|pause|dead|settings, which puts that screen over the frame with the
    reference's sample values (anim.html's ui= does the same). */
-import HD from '../../portal/hd/renderer.js';
-import { SAMPLE } from '../../portal/hd/screens.js';
+import HD from '../../public/hd/renderer.js';
+import { SAMPLE } from '../../public/hd/screens.js';
 const q = new URLSearchParams(location.search);
 const SEQ = await fetch('../hd-reference/seq-' + q.get('seq') + '.json').then(r => r.json());
 const F = SEQ.frames, SL = SEQ.world.slices;

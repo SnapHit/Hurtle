@@ -1,4 +1,4 @@
-// Screenshots frames of a recording drawn by portal/hd/renderer.js, the way
+// Screenshots frames of a recording drawn by public/hd/renderer.js, the way
 // tools/hd-reference/cine.cjs does for the approved renderer, so the two can be
 // compared frame for frame.
 //   node shoot.cjs <seq> <from> <to> <w> <h> <name> [extraQuery] [stills: comma frame list]

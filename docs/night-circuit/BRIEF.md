@@ -206,6 +206,8 @@ shape; it is already proven to be enough to draw every approved item.
 
 ### Where the renderer lives
 
+(Since the site switch, `portal/hd/` lives at `public/hd/` and the game script at `public/game.js`; see CLAUDE.md.)
+
 - `portal/hd/renderer.js`: the Night Circuit renderer, an ES module that
   exports `init(canvas, overlayRoot)` and `render(view)`.
 - `portal/hd/vendor/`: three.js r170 (`three.module.min.js`) and only the addons
