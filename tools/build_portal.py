@@ -174,7 +174,7 @@ def main():
 
     if os.path.isdir(OUT):
         shutil.rmtree(OUT)
-    os.makedirs(os.path.join(OUT, 'music'))
+    os.makedirs(os.path.join(OUT, 'music', 'v2'))
     with open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
         f.write(html)
     with open(os.path.join(OUT, 'game.js'), 'w', encoding='utf-8', newline='\n') as f:
@@ -186,12 +186,12 @@ def main():
             # woff2 is already compressed; store it
             members.append((rel, zipfile.ZIP_STORED if rel.endswith('.woff2') else zipfile.ZIP_DEFLATED))
     for t in TRACKS:
-        src = os.path.join(SRC, 'music', t)
+        src = os.path.join(SRC, 'music', 'v2', t)
         if not os.path.isfile(src):
             fail('missing ' + src)
-        shutil.copyfile(src, os.path.join(OUT, 'music', t))
+        shutil.copyfile(src, os.path.join(OUT, 'music', 'v2', t))
         # AAC is already compressed; storing it saves time and nothing else.
-        members.append(('music/' + t, zipfile.ZIP_STORED))
+        members.append(('music/v2/' + t, zipfile.ZIP_STORED))
 
     if os.path.exists(ZIP):
         os.remove(ZIP)

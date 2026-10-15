@@ -23,7 +23,7 @@ const MUTE_KEY  = "hurtle_mute_v1";
    number, and after a rename that number points at different music: a stored
    preference that survives a change in what the number means is worse than no
    preference. Everyone lands on the new default once, which is correct. */
-const TRACK_KEY = "hurtle_track_v2";
+const TRACK_KEY = "hurtle_track_v3";
 /* keys the game shipped under before it had a name, read once so nobody loses
    a record to a rename */
 const OLD_KEYS  = { best:"descent_best_v2", diag:"descent_diag_v1" };
@@ -3912,8 +3912,8 @@ const MU = {
      routed into the same graph, so gain, muting and the fades all still apply.
      Deliberately NOT decodeAudioData: three minutes of PCM is tens of megabytes
      and the device this is built for is a five year old Chromebook. --- */
-  REC_N: 5,               // files on disk, track-1 to track-5
-  REC_PATH: 'music/track-',
+  REC_N: 5,               // files on disk, music/v2/track-1 to track-5
+  REC_PATH: 'music/v2/track-',
   REC_EXT: '.m4a',
   REC_GAIN: 3.6,          // relative to MASTER, which is set for the synth's own
                           //   raw levels rather than for a mastered file

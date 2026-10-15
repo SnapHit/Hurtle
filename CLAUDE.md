@@ -129,7 +129,8 @@ the look choice script is replaced by the tags it would have written. The SDK ta
 must never appear in `public/` or in a non-CrazyGames copy.
 
 After any change to the game, rebuild the zips and upload them again. Keep the
-five music paths relative.
+five music paths relative. Reordering the music has rules of its own:
+see `public/music/NOTE.md` before renaming a track.
 
 ## House style
 

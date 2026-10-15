@@ -1,7 +1,7 @@
 # Music
 
-Five original tracks, played in the order they are numbered. Track 1 is
-the default every player starts on.
+Five original tracks in `v2/`, played in the order they are numbered.
+Track 1 is the default every player starts on.
 
 Tracks 1 and 3 were swapped on 15 August 2026, by renaming the files as
 this note says to. The storage key was bumped to hurtle_track_v2 in the
@@ -9,9 +9,21 @@ same change: it stores a track number, and leaving it alone would have
 handed anyone who had chosen track 3 a different song under the same
 number.
 
+On 15 October 2026 track 3 moved to first place, and old 1 and 2 moved
+down one (old 3, 1, 2, 4, 5 became new 1 to 5). The storage key went to
+hurtle_track_v3 for the same reason as before.
+
 Reordering the playlist is done by renaming files, not by a mapping
 table in code. A mapping table is something a person has to reason
 about in six months.
+
+**But never give an existing URL different audio.** Since September,
+`_headers` serves `/music/*` as immutable for a year, so a browser that
+already holds `track-1.m4a` will keep playing the old song under that
+name. A reorder therefore moves all five files into a new folder
+(`v2/` now, `v3/` next time) and points `REC_PATH` in game.js and the
+paths in tools/build_portal.py at it. The old folder is deleted, not
+kept.
 
 ## Encoding
 
